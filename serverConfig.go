@@ -23,6 +23,7 @@ type ServerConfig struct {
 	LeaseStore  LeaseStore
 	DeviceStore DeviceStore
 	Log         *verbose.Logger
+	LogPath     string
 	Env         Environment
 }
 

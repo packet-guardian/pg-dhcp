@@ -124,7 +124,7 @@ func (p *pool) getFreeLease(s *ServerConfig) *Lease {
 		}
 
 		// IP has no lease with it
-		l := NewLease(s)
+		l := NewLease(s.LeaseStore)
 		// All known leases have already been checked, which means if this IP
 		// is in use, we didn't do it. Mark as abandoned.
 		if !s.IsTesting() && isIPInUse(next) {

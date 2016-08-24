@@ -32,12 +32,32 @@ type Handler struct {
 
 // NewDHCPServer creates and sets up a new DHCP Handler with the give configuration.
 func NewDHCPServer(conf *Config, s *ServerConfig) *Handler {
+	startLogger(s)
 	c = conf
 	return &Handler{
 		c:            s,
 		gatewayCache: make(map[string]*network),
 		gatewayMutex: sync.Mutex{},
 	}
+}
+
+func startLogger(c *ServerConfig) {
+	logger := verbose.New("DHCP")
+	c.Log = logger
+	if c.LogPath == "" {
+		return
+	}
+
+	sh := verbose.NewStdoutHandler()
+	fh, _ := verbose.NewFileHandler(c.LogPath)
+	logger.AddHandler("stdout", sh)
+	logger.AddHandler("file", fh)
+
+	sh.SetMinLevel(verbose.LogLevelInfo)
+	fh.SetMinLevel(verbose.LogLevelInfo)
+	// The verbose package sets the default max to Emergancy
+	sh.SetMaxLevel(verbose.LogLevelFatal)
+	fh.SetMaxLevel(verbose.LogLevelFatal)
 }
 
 // ListenAndServe starts the DHCP Handler listening on port 67 for packets.

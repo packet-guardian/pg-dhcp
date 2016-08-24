@@ -13,7 +13,7 @@ import (
 // A Lease represents a single DHCP lease in a pool. It is bound to a particular
 // pool and network.
 type Lease struct {
-	c           *ServerConfig
+	store       LeaseStore
 	ID          int
 	IP          net.IP
 	MAC         net.HardwareAddr
@@ -26,14 +26,14 @@ type Lease struct {
 	Registered  bool
 }
 
-func NewLease(s *ServerConfig) *Lease {
-	return &Lease{c: s}
+func NewLease(s LeaseStore) *Lease {
+	return &Lease{store: s}
 }
 
 // IsRegisteredByIP checks if an IP is leased to a registered MAC address.
 // It will return false if an error occurs as well as the error itself.
-func IsRegisteredByIP(s ServerConfig, ip net.IP) (bool, error) {
-	lease, err := s.LeaseStore.GetLeaseByIP(ip)
+func IsRegisteredByIP(s LeaseStore, ip net.IP) (bool, error) {
+	lease, err := s.GetLeaseByIP(ip)
 	if err != nil {
 		return false, err
 	}
@@ -47,8 +47,8 @@ func IsRegisteredByIP(s ServerConfig, ip net.IP) (bool, error) {
 // a Lease. Make sure to check if error is nil. If a new lease object was created
 // it will have an ID = 0. The lease returned will be the most recent least given
 // to the provided MAC address.
-func GetLeaseByMAC(s *ServerConfig, mac net.HardwareAddr) (*Lease, error) {
-	lease, err := s.LeaseStore.GetRecentLeaseByMAC(mac)
+func GetLeaseByMAC(s LeaseStore, mac net.HardwareAddr) (*Lease, error) {
+	lease, err := s.GetRecentLeaseByMAC(mac)
 	if lease == nil {
 		lease = NewLease(s)
 		lease.MAC = mac
@@ -58,15 +58,15 @@ func GetLeaseByMAC(s *ServerConfig, mac net.HardwareAddr) (*Lease, error) {
 
 // GetAllLeasesByMAC returns a slice of Lease given the mac address. If no leases
 // exist, the slice will be nil.
-func GetAllLeasesByMAC(s *ServerConfig, mac net.HardwareAddr) ([]*Lease, error) {
-	return s.LeaseStore.GetAllLeasesByMAC(mac)
+func GetAllLeasesByMAC(s LeaseStore, mac net.HardwareAddr) ([]*Lease, error) {
+	return s.GetAllLeasesByMAC(mac)
 }
 
 // GetLeaseByIP returns a Lease given the IP address. This method will always return
 // a Lease. Make sure to check if error is nil. If a new lease object was created
 // it will have an ID = 0.
-func GetLeaseByIP(s *ServerConfig, ip net.IP) (*Lease, error) {
-	lease, err := s.LeaseStore.GetLeaseByIP(ip)
+func GetLeaseByIP(s LeaseStore, ip net.IP) (*Lease, error) {
+	lease, err := s.GetLeaseByIP(ip)
 	if lease == nil {
 		lease = NewLease(s)
 		lease.IP = ip
@@ -75,12 +75,12 @@ func GetLeaseByIP(s *ServerConfig, ip net.IP) (*Lease, error) {
 }
 
 // GetAllLeases will return a slice of all leases in the database.
-func GetAllLeases(s *ServerConfig) ([]*Lease, error) {
-	return s.LeaseStore.GetAllLeases()
+func GetAllLeases(s LeaseStore) ([]*Lease, error) {
+	return s.GetAllLeases()
 }
 
-func SearchLeases(s ServerConfig, where string, vals ...interface{}) ([]*Lease, error) {
-	return s.LeaseStore.SearchLeases("WHERE "+where, vals...)
+func SearchLeases(s LeaseStore, where string, vals ...interface{}) ([]*Lease, error) {
+	return s.SearchLeases("WHERE "+where, vals...)
 }
 
 // IsFree determines if the lease is expired and available for use
@@ -100,13 +100,13 @@ func (l *Lease) Save() error {
 }
 
 func (l *Lease) updateLease() error {
-	return l.c.LeaseStore.UpdateLease(l)
+	return l.store.UpdateLease(l)
 }
 
 func (l *Lease) insertLease() error {
-	return l.c.LeaseStore.CreateLease(l)
+	return l.store.CreateLease(l)
 }
 
 func (l *Lease) Delete() error {
-	return l.c.LeaseStore.DeleteLease(l)
+	return l.store.DeleteLease(l)
 }
