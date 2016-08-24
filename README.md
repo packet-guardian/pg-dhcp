@@ -1,6 +1,6 @@
 # PG-DHCP
 
-[![GoDoc](https://godoc.org/github.com/usi-lfkeitel/pg-dhcp/src?status.svg)](https://godoc.org/github.com/usi-lfkeitel/pg-dhcp/src)
+[![GoDoc](https://godoc.org/github.com/usi-lfkeitel/pg-dhcp?status.svg)](https://godoc.org/github.com/usi-lfkeitel/pg-dhcp)
 [![GitHub issues](https://img.shields.io/github/issues/usi-lfkeitel/pg-dhcp.svg)](https://github.com/usi-lfkeitel/pg-dhcp/issues)
 [![GitHub stars](https://img.shields.io/github/stars/usi-lfkeitel/pg-dhcp.svg)](https://github.com/usi-lfkeitel/pg-dhcp/stargazers)
 [![GitHub license](https://img.shields.io/badge/license-New%20BSD-blue.svg)](https://raw.githubusercontent.com/usi-lfkeitel/pg-dhcp/master/LICENSE)
