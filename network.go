@@ -173,6 +173,20 @@ func (n *network) getFreeLease(e *ServerConfig, registered bool) (*Lease, *pool)
 	return nil, nil
 }
 
+func (n *network) getFreeLeaseDesperate(e *ServerConfig, registered bool) (*Lease, *pool) {
+	for _, s := range n.subnets {
+		if s.allowUnknown == registered {
+			continue
+		}
+		for _, p := range s.pools {
+			if l := p.getFreeLeaseDesperate(e); l != nil {
+				return l, p
+			}
+		}
+	}
+	return nil, nil
+}
+
 func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {

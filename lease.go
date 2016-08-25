@@ -85,7 +85,7 @@ func SearchLeases(s LeaseStore, where string, vals ...interface{}) ([]*Lease, er
 
 // IsFree determines if the lease is expired and available for use
 func (l *Lease) IsFree() bool {
-	return (l.ID == 0 || time.Now().After(l.End))
+	return (l.ID == 0 || l.IsExpired())
 }
 
 func (l *Lease) IsExpired() bool {
