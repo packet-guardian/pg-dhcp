@@ -45,10 +45,16 @@ func startLogger(c *ServerConfig) {
 	logger := verbose.New("DHCP")
 	c.Log = logger
 	if c.LogPath == "" {
+		// 	if c.IsTesting() {
+		// 		sh := verbose.NewStdoutHandler()
+		// 		sh.SetMinLevel(verbose.LogLevelDebug)
+		// 		sh.SetMaxLevel(verbose.LogLevelFatal)
+		// 		logger.AddHandler("stdout", sh)
+		// 	}
 		return
 	}
 
-	sh := verbose.NewStdoutHandler()
+	sh := verbose.NewStdoutHandler(true)
 	fh, _ := verbose.NewFileHandler(c.LogPath)
 	logger.AddHandler("stdout", sh)
 	logger.AddHandler("file", fh)
@@ -207,7 +213,10 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 	if lease == nil {
 		// Device doesn't have a recent lease, get a new one
 		lease, pool = network.getFreeLease(h.c, device.IsRegistered())
-		if lease == nil {
+		if lease == nil { // No free lease was found, be more aggressive
+			lease, pool = network.getFreeLeaseDesperate(h.c, device.IsRegistered())
+		}
+		if lease == nil { // Still no lease was found, error and go to the next request
 			h.c.Log.WithFields(verbose.Fields{
 				"Network":    network.name,
 				"Registered": device.IsRegistered(),
@@ -299,7 +308,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		h.c.Log.WithFields(verbose.Fields{
 			"Requested IP": reqIP.String(),
 			"Registered":   device.IsRegistered(),
-		}).Notice("Got a REQUEST for IP not in a scope")
+		}).Info("Got a REQUEST for IP not in a scope")
 		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
 	}
 
@@ -310,7 +319,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"Client MAC":   p.CHAddr().String(),
 			"Network":      network.name,
 			"Registered":   device.IsRegistered(),
-		}).Notice("Client tried to request a lease that doesn't exist")
+		}).Info("Client tried to request a lease that doesn't exist")
 		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
 	}
 
@@ -321,7 +330,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"Lease MAC":    lease.MAC.String(),
 			"Network":      network.name,
 			"Registered":   device.IsRegistered(),
-		}).Notice("Client tried to request lease not belonging to them")
+		}).Info("Client tried to request lease not belonging to them")
 		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
 	}
 

@@ -10,13 +10,15 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/usi-lfkeitel/packet-guardian/src/common"
 )
 
 func TestIPGiveOut(t *testing.T) {
-	// Setup environment
-	e := common.NewTestEnvironment()
+	sc := &ServerConfig{
+		LeaseStore:  &testLeaseStore{},
+		DeviceStore: &testDeviceStore{},
+		Env:         EnvTesting,
+		LogPath:     "",
+	}
 
 	// Setup Confuration
 	reader := strings.NewReader(testConfig)
@@ -26,30 +28,34 @@ func TestIPGiveOut(t *testing.T) {
 	}
 
 	pool := c.networks["network1"].subnets[0].pools[0]
-	lease := pool.getFreeLease(e)
+	lease := pool.getFreeLease(sc)
 	if !bytes.Equal(lease.IP.To4(), []byte{0xa, 0x0, 0x1, 0xa}) {
 		t.Errorf("Incorrect lease. Expected %v, got %v", []byte{0xa, 0x0, 0x2, 0xa}, lease.IP)
 	}
 	lease.End = time.Now().Add(time.Duration(10) * time.Second)
 
 	// Test next lease is given
-	lease = pool.getFreeLease(e)
+	lease = pool.getFreeLease(sc)
 	if !bytes.Equal(lease.IP.To4(), []byte{0xa, 0x0, 0x1, 0xb}) {
 		t.Errorf("Incorrect lease. Expected %v, got %v", []byte{0xa, 0x0, 0x2, 0xb}, lease.IP)
 	}
 }
 
 func BenchmarkLeaseGiveOutLastLeaseNet24(b *testing.B) {
-	benchmarkPool("Network1", b)
+	benchmarkPool("network1", b)
 }
 
 func BenchmarkLeaseGiveOutLastLeaseNet22(b *testing.B) {
-	benchmarkPool("Network2", b)
+	benchmarkPool("network2", b)
 }
 
 func benchmarkPool(name string, b *testing.B) {
-	// Setup environment
-	e := common.NewTestEnvironment()
+	sc := &ServerConfig{
+		LeaseStore:  &testLeaseStore{},
+		DeviceStore: &testDeviceStore{},
+		Env:         EnvTesting,
+		LogPath:     "",
+	}
 
 	// Setup Confuration
 	reader := strings.NewReader(testConfig)
@@ -61,7 +67,7 @@ func benchmarkPool(name string, b *testing.B) {
 	pool := c.networks[name].subnets[0].pools[0]
 	// Burn through all but the last lease
 	for i := 0; i < pool.getCountOfIPs()-1; i++ {
-		lease := pool.getFreeLease(e)
+		lease := pool.getFreeLease(sc)
 		if lease == nil {
 			b.FailNow()
 		}
@@ -70,8 +76,7 @@ func benchmarkPool(name string, b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		lease := pool.getFreeLease(e)
-		if lease == nil {
+		if l := pool.getFreeLease(sc); l == nil {
 			b.Fatal("Lease is nil")
 		}
 	}
