@@ -12,6 +12,8 @@ import (
 	"time"
 
 	d4 "github.com/onesimus-systems/dhcp4"
+
+	"github.com/lfkeitel/verbose"
 )
 
 // TestGiveLeaseFromMultiplePools is targeted at the Network.getFreeLease()
@@ -27,6 +29,7 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 		DeviceStore: ds,
 		Env:         EnvTesting,
 		LogPath:     "",
+		Log:         verbose.New(""),
 	}
 
 	// Setup Confuration
