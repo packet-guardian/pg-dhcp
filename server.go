@@ -229,6 +229,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 		"Lease IP":   lease.IP.String(),
 		"Client MAC": p.CHAddr().String(),
 		"Registered": device.IsRegistered(),
+		"Network":    network.name,
 	}).Info("Offering lease to client")
 
 	// Set temporary offered flag and end time
