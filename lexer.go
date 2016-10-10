@@ -9,58 +9,100 @@ import (
 )
 
 type lexer struct {
-	line int
+	line     int
+	r        *bufio.Reader
+	buffer   []*lexToken
+	prev     *lexToken
+	readPrev bool
 }
 
-func (l *lexer) lex(r *bufio.Reader) []*lexToken {
-	tokens := make([]*lexToken, 0)
-	l.line = 1
+func newLexer(r *bufio.Reader) *lexer {
+	return &lexer{r: r, line: 1}
+}
 
+// This function will make the lexer reread the previous token. This can
+// only be used to reread one token.
+func (l *lexer) unread() {
+	l.readPrev = true
+}
+
+func (l *lexer) all() []*lexToken {
+	tokens := make([]*lexToken, 0)
 	for {
-		c, err := r.ReadByte()
-		if err != nil {
+		tok := l.next()
+		if tok.token == EOF {
 			break
 		}
-		var tok []*lexToken
+		tokens = append(tokens, tok)
+	}
+	return tokens
+}
+
+func (l *lexer) next() *lexToken {
+	if l.readPrev {
+		l.readPrev = false
+		return l.prev
+	}
+
+	if len(l.buffer) > 0 {
+		tok := l.buffer[0]
+		l.buffer = l.buffer[1:]
+		l.prev = tok
+		return tok
+	}
+
+	var tok []*lexToken // Some consumes produce multiple tokens
+
+	for {
+		c, err := l.r.ReadByte()
+		if err != nil {
+			return &lexToken{token: EOF}
+		}
 
 		if c == '"' {
-			tok = l.consumeString(r) // Start after double quote
+			tok = l.consumeString() // Start after double quote
+			break
 		} else if isNumber(c) {
-			r.UnreadByte()
-			tok = l.consumeNumeric(r)
+			l.r.UnreadByte()
+			tok = l.consumeNumeric()
+			break
 		} else if c == '\n' {
 			l.line++
-			continue
 		} else if c == '#' {
-			line := l.consumeLine(r)
+			line := l.consumeLine()
 			tok = []*lexToken{
 				&lexToken{
 					token: COMMENT,
 					value: string(line),
 				},
 			}
+			break
 		} else if isLetter(c) {
-			r.UnreadByte()
-			tok = l.consumeIdent(r)
-		} else if isWhitespace(c) {
-			continue
-		} else {
-			continue
+			l.r.UnreadByte()
+			tok = l.consumeIdent()
+			break
 		}
-
-		for _, t := range tok {
-			t.line = l.line
-			//fmt.Println(t.String())
-		}
-		tokens = append(tokens, tok...)
 	}
-	return tokens
+
+	// Ensure all produced tokens have a line number
+	for _, t := range tok {
+		t.line = l.line
+	}
+
+	// This function only returns one token, if more were created,
+	// add them to a buffer to be returned later
+	if len(tok) > 1 {
+		l.buffer = tok[1:]
+	}
+
+	l.prev = tok[0]
+	return tok[0]
 }
 
-func (l *lexer) consumeString(r *bufio.Reader) []*lexToken {
+func (l *lexer) consumeString() []*lexToken {
 	buf := bytes.Buffer{}
 	for {
-		b, err := r.ReadByte()
+		b, err := l.r.ReadByte()
 		if err != nil {
 			return nil
 		}
@@ -72,15 +114,15 @@ func (l *lexer) consumeString(r *bufio.Reader) []*lexToken {
 	return []*lexToken{&lexToken{token: STRING, value: buf.String()}}
 }
 
-func (l *lexer) consumeLine(r *bufio.Reader) []byte {
+func (l *lexer) consumeLine() []byte {
 	buf := bytes.Buffer{}
 	for {
-		b, err := r.ReadByte()
+		b, err := l.r.ReadByte()
 		if err != nil {
 			return nil
 		}
 		if b == '\n' {
-			r.UnreadByte()
+			l.r.UnreadByte()
 			break
 		}
 		buf.WriteByte(b)
@@ -88,13 +130,13 @@ func (l *lexer) consumeLine(r *bufio.Reader) []byte {
 	return buf.Bytes()
 }
 
-func (l *lexer) consumeNumeric(r *bufio.Reader) []*lexToken {
+func (l *lexer) consumeNumeric() []*lexToken {
 	buf := bytes.Buffer{}
 	dotCount := 0
 	hasSlash := false
 
 	for {
-		b, err := r.ReadByte()
+		b, err := l.r.ReadByte()
 		if err != nil {
 			return nil
 		}
@@ -110,7 +152,7 @@ func (l *lexer) consumeNumeric(r *bufio.Reader) []*lexToken {
 			hasSlash = true
 			continue
 		}
-		r.UnreadByte()
+		l.r.UnreadByte()
 		break
 	}
 
@@ -149,15 +191,15 @@ func (l *lexer) consumeNumeric(r *bufio.Reader) []*lexToken {
 	return toks
 }
 
-func (l *lexer) consumeIdent(r *bufio.Reader) []*lexToken {
+func (l *lexer) consumeIdent() []*lexToken {
 	buf := bytes.Buffer{}
 	for {
-		b, err := r.ReadByte()
+		b, err := l.r.ReadByte()
 		if err != nil {
 			return nil
 		}
 		if isWhitespace(b) {
-			r.UnreadByte()
+			l.r.UnreadByte()
 			break
 		}
 		buf.WriteByte(b)

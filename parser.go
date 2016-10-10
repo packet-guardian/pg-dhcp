@@ -2,7 +2,6 @@ package dhcp
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -22,53 +21,37 @@ func ParseFile(path string) (*Config, error) {
 	return newParser(bufio.NewReader(file)).parse()
 }
 
-// type parseError struct {
-// 	line    int
-// 	message string
-// }
-//
-// func newError(line int, message string, v ...interface{}) parseError {
-// 	return parseError{
-// 		line:    line,
-// 		message: fmt.Sprintf(message, v...),
-// 	}
-// }
-//
-// func (p parseError) Error() string {
-// 	return fmt.Sprintf("Error %s on line %d", p.message, p.line)
-// }
-
 type parser struct {
-	r *bufio.Reader
+	l *lexer
 	c *Config
 }
 
 func newParser(r *bufio.Reader) *parser {
-	return &parser{r: r}
+	return &parser{l: newLexer(r)}
 }
 
 func (p *parser) parse() (*Config, error) {
 	p.c = newConfig()
-	toks := (&lexer{}).lex(p.r)
 
-	for i := 0; i < len(toks); i++ {
-		tok := toks[i]
+mainLoop:
+	for {
+		tok := p.l.next()
 		var err error
-		var next int
 		switch tok.token {
 		case COMMENT:
 			continue
 		case GLOBAL:
-			next, err = p.parseGlobal(toks, i+1)
+			err = p.parseGlobal()
 		case NETWORK:
-			next, err = p.parseNetwork(toks, i+1)
+			err = p.parseNetwork()
+		case EOF:
+			break mainLoop
 		default:
 			return nil, fmt.Errorf("Invalid token on line %d: %s", tok.line, tok.string())
 		}
 		if err != nil {
 			return nil, err
 		}
-		i = next - 1
 	}
 
 	for _, n := range p.c.networks {
@@ -77,69 +60,70 @@ func (p *parser) parse() (*Config, error) {
 	return p.c, nil
 }
 
-func (p *parser) parseGlobal(toks []*lexToken, start int) (int, error) {
-	var i int
+func (p *parser) parseGlobal() error {
 mainLoop:
-	for i = start; i < len(toks); i++ {
-		tok := toks[i]
+	for {
+		tok := p.l.next()
 		switch tok.token {
+		case EOF:
+			break mainLoop
 		case COMMENT:
 			continue
 		case SERVER_IDENTIFIER:
-			if i+1 > len(toks) || toks[i+1].token != IP_ADDRESS {
-				return 0, fmt.Errorf("Expected IP address on line %d", toks[i+1].line)
+			addr := p.l.next()
+			if addr.token != IP_ADDRESS {
+				return fmt.Errorf("Expected IP address on line %d", addr.line)
 			}
-			p.c.global.serverIdentifier = toks[i+1].value.(net.IP)
-			i++
+			p.c.global.serverIdentifier = addr.value.(net.IP)
 		case REGISTERED:
-			s, next, err := p.parseSettingsBlock(toks, i+1)
+			s, err := p.parseSettingsBlock()
 			if err != nil {
-				return 0, err
+				return err
 			}
 			p.c.global.registeredSettings = s
-			i = next
+			p.l.next() // Consume END from block
 		case UNREGISTERED:
-			s, next, err := p.parseSettingsBlock(toks, i+1)
+			s, err := p.parseSettingsBlock()
 			if err != nil {
-				return 0, err
+				return err
 			}
 			p.c.global.unregisteredSettings = s
-			i = next
+			p.l.next() // Consume END from block
 		case END:
 			break mainLoop
 		default:
 			if tok.token.isSetting() {
-				next, err := p.parseSetting(toks, i, p.c.global.settings)
+				p.l.unread()
+				err := p.parseSetting(p.c.global.settings)
 				if err != nil {
-					return 0, err
+					return err
 				}
-				i = next - 1
 				continue
 			}
-			return 0, fmt.Errorf("Unexpected token %s on line %d in global", tok.string(), tok.line)
+			return fmt.Errorf("Unexpected token %s on line %d in global", tok.string(), tok.line)
 		}
 	}
-	return i + 1, nil
+	return nil
 }
 
-func (p *parser) parseNetwork(toks []*lexToken, start int) (int, error) {
-	nameToken := toks[start]
+func (p *parser) parseNetwork() error {
+	nameToken := p.l.next()
 	if nameToken.token != STRING {
-		return 0, fmt.Errorf("Expected STRING on line %d", nameToken.line)
+		return fmt.Errorf("Expected STRING on line %d", nameToken.line)
 	}
 	name := nameToken.value.(string)
 
 	if _, exists := p.c.networks[name]; exists {
-		return 0, fmt.Errorf("Network %s already declared, line %d", name, nameToken.line)
+		return fmt.Errorf("Network %s already declared, line %d", name, nameToken.line)
 	}
 	netBlock := newNetwork(name)
-	start++   // Skip name token
 	mode := 0 // 0 = root, 1 = registered, 2 = unregistered
-	var i int
 mainLoop:
-	for i = start; i < len(toks); i++ {
-		tok := toks[i]
+	for {
+		tok := p.l.next()
 		switch tok.token {
+		case EOF:
+			break mainLoop
 		case COMMENT:
 			continue
 		case SUBNET:
@@ -148,16 +132,15 @@ mainLoop:
 				mode = 2
 				shortSyntax = true
 			}
-			subnet, next, err := p.parseSubnet(toks, i+1)
+			subnet, err := p.parseSubnet()
 			if err != nil {
-				return 0, err
+				return err
 			}
 			if mode == 2 { // Unregistered block
 				subnet.allowUnknown = true
 			}
 			subnet.network = netBlock
 			netBlock.subnets = append(netBlock.subnets, subnet)
-			i = next - 1
 			if shortSyntax {
 				mode = 0
 			}
@@ -166,13 +149,13 @@ mainLoop:
 				mode = 1
 				continue
 			}
-			return 0, fmt.Errorf("Registered block not allowed on line %d", tok.line)
+			return fmt.Errorf("Registered block not allowed on line %d", tok.line)
 		case UNREGISTERED:
 			if mode == 0 {
 				mode = 2
 				continue
 			}
-			return 0, fmt.Errorf("Unregistered block not allowed on line %d", tok.line)
+			return fmt.Errorf("Unregistered block not allowed on line %d", tok.line)
 		case END:
 			if mode == 0 { // Exit from root network block
 				break mainLoop
@@ -181,38 +164,35 @@ mainLoop:
 			}
 		default:
 			if tok.token.isSetting() {
+				p.l.unread()
 				block := netBlock.settings
 				if mode == 1 {
 					block = netBlock.registeredSettings
 				} else if mode == 2 {
 					block = netBlock.unregisteredSettings
 				}
-				next, err := p.parseSetting(toks, i, block)
+				err := p.parseSetting(block)
 				if err != nil {
-					return 0, err
+					return err
 				}
-				i = next - 1
 				continue
 			}
-			return 0, fmt.Errorf("Unexpected token %s on line %d in network", tok.string(), tok.line)
+			return fmt.Errorf("Unexpected token %s on line %d in network", tok.string(), tok.line)
 		}
 	}
 	p.c.networks[name] = netBlock
-	return i + 1, nil
+	return nil
 }
 
-func (p *parser) parseSubnet(toks []*lexToken, start int) (*subnet, int, error) {
-	if start+2 > len(toks) {
-		return nil, 0, errors.New("Unexpected end of file")
-	}
-	ipAddr := toks[start]
-	netmask := toks[start+1]
-	start += 2
+func (p *parser) parseSubnet() (*subnet, error) {
+	ipAddr := p.l.next()
 	if ipAddr.token != IP_ADDRESS {
-		return nil, 0, fmt.Errorf("Expected IP address on line %d", ipAddr.line)
+		return nil, fmt.Errorf("Expected IP address on line %d", ipAddr.line)
 	}
+
+	netmask := p.l.next()
 	if netmask.token != IP_ADDRESS {
-		return nil, 0, fmt.Errorf("Expected IP address on line %d", netmask.line)
+		return nil, fmt.Errorf("Expected IP address on line %d", netmask.line)
 	}
 	sub := newSubnet()
 	sub.net = &net.IPNet{
@@ -220,176 +200,168 @@ func (p *parser) parseSubnet(toks []*lexToken, start int) (*subnet, int, error) 
 		Mask: net.IPMask(netmask.value.(net.IP)),
 	}
 
-	var i int
 mainLoop:
-	for i = start; i < len(toks); i++ {
-		tok := toks[i]
+	for {
+		tok := p.l.next()
 		switch tok.token {
 		case COMMENT:
 			continue
+		case EOF:
+			break mainLoop
 		case POOL:
-			subPool, next, err := p.parsePool(toks, i+1)
+			subPool, err := p.parsePool()
 			if err != nil {
-				return nil, 0, err
+				return nil, err
 			}
 			subPool.subnet = sub
 			sub.pools = append(sub.pools, subPool)
-			i = next - 1
 		case RANGE:
-			subPool, next, err := p.parsePool(toks, i) // Start with range statement
+			p.l.unread()
+			subPool, err := p.parsePool() // Start with range statement
 			if err != nil {
-				return nil, 0, err
+				return nil, err
 			}
 			subPool.subnet = sub
 			sub.pools = append(sub.pools, subPool)
-			i = next - 2 // Get End token again
+			p.l.unread() // Reread END token
 		case END:
 			break mainLoop
 		default:
 			if tok.token.isSetting() {
-				next, err := p.parseSetting(toks, i, sub.settings)
+				p.l.unread()
+				err := p.parseSetting(sub.settings)
 				if err != nil {
-					return nil, 0, err
+					return nil, err
 				}
-				i = next - 1
 				continue
 			}
-			return nil, 0, fmt.Errorf("Unexpected token %s on line %d in subnet", tok.string(), tok.line)
+			return nil, fmt.Errorf("Unexpected token %s on line %d in subnet", tok.string(), tok.line)
 		}
 	}
 	if _, ok := sub.settings.options[dhcp4.OptionSubnetMask]; !ok {
 		sub.settings.options[dhcp4.OptionSubnetMask] = []byte(sub.net.Mask)
 	}
-	return sub, i + 1, nil
+	return sub, nil
 }
 
-func (p *parser) parsePool(toks []*lexToken, start int) (*pool, int, error) {
+func (p *parser) parsePool() (*pool, error) {
 	nPool := newPool()
 
-	var i int
 mainLoop:
-	for i = start; i < len(toks); i++ {
-		tok := toks[i]
+	for {
+		tok := p.l.next()
 		switch tok.token {
 		case COMMENT:
 			continue
+		case EOF:
+			break mainLoop
 		case RANGE:
 			if nPool.rangeStart != nil {
-				return nil, 0, fmt.Errorf("Range redeclared on line %d", tok.line)
+				return nil, fmt.Errorf("Range redeclared on line %d", tok.line)
 			}
-			startIP := toks[i+1]
-			endIP := toks[i+2]
-			i += 2
+			startIP := p.l.next()
 			if startIP.token != IP_ADDRESS {
-				return nil, 0, fmt.Errorf("Expected IP address on line %d, got %s", startIP.line, startIP.string())
-			}
-			if endIP.token != IP_ADDRESS {
-				return nil, 0, fmt.Errorf("Expected IP address on line %d, got %s", endIP.line, endIP.string())
+				return nil, fmt.Errorf("Expected IP address on line %d, got %s", startIP.line, startIP.string())
 			}
 			nPool.rangeStart = startIP.value.(net.IP)
+
+			endIP := p.l.next()
+			if endIP.token != IP_ADDRESS {
+				return nil, fmt.Errorf("Expected IP address on line %d, got %s", endIP.line, endIP.string())
+			}
 			nPool.rangeEnd = endIP.value.(net.IP)
 		case END:
 			break mainLoop
 		default:
 			if tok.token.isSetting() {
-				next, err := p.parseSetting(toks, i, nPool.settings)
+				p.l.unread()
+				err := p.parseSetting(nPool.settings)
 				if err != nil {
-					return nil, 0, err
+					return nil, err
 				}
-				i = next - 1
 				continue
 			}
-			return nil, 0, fmt.Errorf("Unexpected token %s on line %d in pool", tok.string(), tok.line)
+			return nil, fmt.Errorf("Unexpected token %s on line %d in pool", tok.string(), tok.line)
 		}
 	}
-	return nPool, i + 1, nil
+	return nPool, nil
 }
 
-func (p *parser) parseSettingsBlock(toks []*lexToken, start int) (*settings, int, error) {
+func (p *parser) parseSettingsBlock() (*settings, error) {
 	s := newSettingsBlock()
 
-	var i int
-	for i = start; i < len(toks); i++ {
-		if !toks[i].token.isSetting() {
+	for {
+		tok := p.l.next()
+		p.l.unread()
+		if !tok.token.isSetting() {
 			break
 		}
-		next, err := p.parseSetting(toks, i, s)
+		err := p.parseSetting(s)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
-		i = next - 1
 	}
-	return s, i, nil
+	return s, nil
 }
 
-func (p *parser) parseSetting(toks []*lexToken, start int, setBlock *settings) (int, error) {
-	tok := toks[start]
+func (p *parser) parseSetting(setBlock *settings) error {
+	tok := p.l.next()
 
 	switch tok.token {
 	case COMMENT:
-		return start + 1, nil
+		return nil
+	case EOF:
+		return nil
 	case OPTION:
-		code, data, next, err := p.parseOption(toks, start+1)
+		code, data, err := p.parseOption()
 		if err != nil {
-			return 0, err
+			return err
 		}
 		setBlock.options[code] = data
-		return next, nil
+		return nil
 	case DEFAULT_LEASE_TIME:
-		if start+1 > len(toks) || toks[start+1].token != NUMBER {
-			return 0, fmt.Errorf("Expected number on line %d", toks[start+1].line)
+		tokn := p.l.next()
+		if tokn.token != NUMBER {
+			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.defaultLeaseTime = time.Duration(toks[start+1].value.(int)) * time.Second
-		return start + 2, nil
+		setBlock.defaultLeaseTime = time.Duration(tokn.value.(int)) * time.Second
+		return nil
 	case MAX_LEASE_TIME:
-		if start+1 > len(toks) || toks[start+1].token != NUMBER {
-			return 0, fmt.Errorf("Expected number on line %d", toks[start+1].line)
+		tokn := p.l.next()
+		if tokn.token != NUMBER {
+			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.maxLeaseTime = time.Duration(toks[start+1].value.(int)) * time.Second
-		return start + 2, nil
+		setBlock.maxLeaseTime = time.Duration(tokn.value.(int)) * time.Second
+		return nil
 	case FREE_LEASE_AFTER:
-		if start+1 > len(toks) || toks[start+1].token != NUMBER {
-			return 0, fmt.Errorf("Expected number on line %d", toks[start+1].line)
+		tokn := p.l.next()
+		if tokn.token != NUMBER {
+			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.freeLeaseAfter = time.Duration(toks[start+1].value.(int)) * time.Second
-		return start + 2, nil
+		setBlock.freeLeaseAfter = time.Duration(tokn.value.(int)) * time.Second
+		return nil
 	default:
-		return 0, fmt.Errorf("Unexpected token %s on line %d in settings", tok.string(), tok.line)
+		return fmt.Errorf("Unexpected token %s on line %d in settings", tok.string(), tok.line)
 	}
 
-	return start + 1, nil
+	return nil
 }
 
-func (p *parser) parseOption(toks []*lexToken, start int) (dhcp4.OptionCode, []byte, int, error) {
-	option := toks[start].value.(string)
+func (p *parser) parseOption() (dhcp4.OptionCode, []byte, error) {
+	option := p.l.next().value.(string)
 	block, exists := options[option]
 	if !exists {
-		return dhcp4.OptionCode(0), nil, 0, fmt.Errorf("Option %s is not supported", option)
+		return dhcp4.OptionCode(0), nil, fmt.Errorf("Option %s is not supported", option)
 	}
 
 	optionData := make([]byte, 0)
 
 	if block.schema.multi == oneOrMore {
-		for i := start + 1; i < len(toks); i++ {
-			start++
-			if toks[i].token != block.schema.token {
-				break
-			}
-			switch t := toks[i].value.(type) {
-			case string:
-				optionData = append(optionData, []byte(t)...)
-			case []byte:
-				optionData = append(optionData, t...)
-			case net.IP:
-				optionData = append(optionData, []byte(t.To4())...)
-			}
-		}
-	} else {
-		for i := 0; i < int(block.schema.multi); i++ {
-			start++
-			tok := toks[start]
+		for {
+			tok := p.l.next()
 			if tok.token != block.schema.token {
-				return 0, nil, 0, fmt.Errorf("Expected %s, got %s on line %d", block.schema.token, tok.token, tok.line)
+				p.l.unread()
+				break
 			}
 			switch t := tok.value.(type) {
 			case string:
@@ -400,8 +372,22 @@ func (p *parser) parseOption(toks []*lexToken, start int) (dhcp4.OptionCode, []b
 				optionData = append(optionData, []byte(t.To4())...)
 			}
 		}
-		start++
+	} else {
+		for i := 0; i < int(block.schema.multi); i++ {
+			tok := p.l.next()
+			if tok.token != block.schema.token {
+				return 0, nil, fmt.Errorf("Expected %s, got %s on line %d", block.schema.token, tok.token, tok.line)
+			}
+			switch t := tok.value.(type) {
+			case string:
+				optionData = append(optionData, []byte(t)...)
+			case []byte:
+				optionData = append(optionData, t...)
+			case net.IP:
+				optionData = append(optionData, []byte(t.To4())...)
+			}
+		}
 	}
 
-	return block.code, optionData, start, nil
+	return block.code, optionData, nil
 }
