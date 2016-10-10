@@ -90,8 +90,8 @@ func (p *pool) getOptions(registered bool) dhcp4.Options {
 func (p *pool) getFreeLease(s *ServerConfig) *Lease {
 	now := time.Now()
 
-	regFreeTime := time.Duration(p.subnet.network.global.registeredSettings.freeLeaseAfter) * time.Second
-	unRegFreeTime := time.Duration(p.subnet.network.global.unregisteredSettings.freeLeaseAfter) * time.Second
+	regFreeTime := p.subnet.network.global.registeredSettings.freeLeaseAfter
+	unRegFreeTime := p.subnet.network.global.unregisteredSettings.freeLeaseAfter
 	// Find a candidate from the already used leases
 	for _, l := range p.leases {
 		if l.IsAbandoned { // IP in use by a device we don't know about

@@ -22,7 +22,7 @@ func TestIPGiveOut(t *testing.T) {
 
 	// Setup Confuration
 	reader := strings.NewReader(testConfig)
-	c, err := newParser(bufio.NewScanner(reader)).parse()
+	c, err := newParser(bufio.NewReader(reader)).parse()
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
 	}
@@ -59,7 +59,7 @@ func benchmarkPool(name string, b *testing.B) {
 
 	// Setup Confuration
 	reader := strings.NewReader(testConfig)
-	c, err := newParser(bufio.NewScanner(reader)).parse()
+	c, err := newParser(bufio.NewReader(reader)).parse()
 	if err != nil {
 		b.Fatalf("Test config failed parsing: %v", err)
 	}
