@@ -7,8 +7,6 @@ package dhcp
 import (
 	"fmt"
 	"strconv"
-
-	"github.com/onesimus-systems/dhcp4"
 )
 
 type token int
@@ -107,46 +105,3 @@ func lookup(ident string) token {
 }
 
 func (tok token) isSetting() bool { return setting_beg < tok && tok < setting_end }
-
-var options = map[string]*dhcpOptionBlock{
-	"subnet-mask": &dhcpOptionBlock{
-		code:   dhcp4.OptionSubnetMask,
-		schema: &optionSchema{token: IP_ADDRESS, multi: 1},
-	},
-	"router": &dhcpOptionBlock{
-		code:   dhcp4.OptionRouter,
-		schema: &optionSchema{token: IP_ADDRESS, multi: oneOrMore},
-	},
-	"domain-name-server": &dhcpOptionBlock{
-		code:   dhcp4.OptionDomainNameServer,
-		schema: &optionSchema{token: IP_ADDRESS, multi: oneOrMore},
-	},
-	"domain-name": &dhcpOptionBlock{
-		code:   dhcp4.OptionDomainName,
-		schema: &optionSchema{token: STRING, multi: 1},
-	},
-	"broadcast-address": &dhcpOptionBlock{
-		code:   dhcp4.OptionBroadcastAddress,
-		schema: &optionSchema{token: IP_ADDRESS, multi: 1},
-	},
-	"network-time-protocol-servers": &dhcpOptionBlock{
-		code:   dhcp4.OptionNetworkTimeProtocolServers,
-		schema: &optionSchema{token: IP_ADDRESS, multi: oneOrMore},
-	},
-}
-
-type multiple int
-
-const (
-	oneOrMore multiple = -1
-)
-
-type optionSchema struct {
-	token token
-	multi multiple
-}
-
-type dhcpOptionBlock struct {
-	code   dhcp4.OptionCode
-	schema *optionSchema
-}
