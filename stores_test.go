@@ -14,7 +14,7 @@ global
 	registered
 		default-lease-time 86400
 		max-lease-time 86400
-		option domain-name-server 10.1.0.1, 10.1.0.2
+		option domain-name-server 10.1.0.1 10.1.0.2
 	end
 
 	unregistered
