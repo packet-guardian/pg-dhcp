@@ -6,6 +6,7 @@ package dhcp
 
 import (
 	"bufio"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
@@ -328,21 +329,21 @@ func (p *parser) parseSetting(setBlock *settings) error {
 		if tokn.token != NUMBER {
 			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.defaultLeaseTime = time.Duration(tokn.value.(int)) * time.Second
+		setBlock.defaultLeaseTime = time.Duration(tokn.value.(uint64)) * time.Second
 		return nil
 	case MAX_LEASE_TIME:
 		tokn := p.l.next()
 		if tokn.token != NUMBER {
 			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.maxLeaseTime = time.Duration(tokn.value.(int)) * time.Second
+		setBlock.maxLeaseTime = time.Duration(tokn.value.(uint64)) * time.Second
 		return nil
 	case FREE_LEASE_AFTER:
 		tokn := p.l.next()
 		if tokn.token != NUMBER {
 			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.freeLeaseAfter = time.Duration(tokn.value.(int)) * time.Second
+		setBlock.freeLeaseAfter = time.Duration(tokn.value.(uint64)) * time.Second
 		return nil
 	default:
 		return fmt.Errorf("Unexpected token %s on line %d in settings", tok.string(), tok.line)
@@ -352,10 +353,14 @@ func (p *parser) parseSetting(setBlock *settings) error {
 }
 
 func (p *parser) parseOption() (dhcp4.OptionCode, []byte, error) {
-	option := p.l.next().value.(string)
+	n := p.l.next()
+	if n.token != STRING {
+		return 0, nil, fmt.Errorf("Invalid option name on line %d", n.line)
+	}
+	option := n.value.(string)
 	block, exists := options[option]
 	if !exists {
-		return dhcp4.OptionCode(0), nil, fmt.Errorf("Option %s is not supported", option)
+		return 0, nil, fmt.Errorf("Option %s is not supported", option)
 	}
 
 	optionData := make([]byte, 0)
@@ -368,8 +373,28 @@ func (p *parser) parseOption() (dhcp4.OptionCode, []byte, error) {
 				break
 			}
 			switch t := tok.value.(type) {
+			case uint64:
+				buf := make([]byte, 8)
+				written := binary.PutUvarint(buf, t)
+				if written > int(block.schema.maxlen) {
+					return 0, nil, fmt.Errorf("Number is too big on line %s", tok.line)
+				}
+				optionData = append(optionData, buf...)
+			case int64:
+				buf := make([]byte, 8)
+				written := binary.PutVarint(buf, t)
+				if written > int(block.schema.maxlen) {
+					return 0, nil, fmt.Errorf("Number is too big on line %s", tok.line)
+				}
+				optionData = append(optionData, buf...)
 			case string:
 				optionData = append(optionData, []byte(t)...)
+			case bool:
+				if t {
+					optionData = append(optionData, byte(1))
+				} else {
+					optionData = append(optionData, byte(0))
+				}
 			case []byte:
 				optionData = append(optionData, t...)
 			case net.IP:
@@ -383,8 +408,28 @@ func (p *parser) parseOption() (dhcp4.OptionCode, []byte, error) {
 				return 0, nil, fmt.Errorf("Expected %s, got %s on line %d", block.schema.token, tok.token, tok.line)
 			}
 			switch t := tok.value.(type) {
+			case uint64:
+				buf := make([]byte, 8)
+				written := binary.PutUvarint(buf, t)
+				if written > int(block.schema.maxlen) {
+					return 0, nil, fmt.Errorf("Number is too big on line %s", tok.line)
+				}
+				optionData = append(optionData, buf...)
+			case int64:
+				buf := make([]byte, 8)
+				written := binary.PutVarint(buf, t)
+				if written > int(block.schema.maxlen) {
+					return 0, nil, fmt.Errorf("Number is too big on line %s", tok.line)
+				}
+				optionData = append(optionData, buf...)
 			case string:
 				optionData = append(optionData, []byte(t)...)
+			case bool:
+				if t {
+					optionData = append(optionData, byte(1))
+				} else {
+					optionData = append(optionData, byte(0))
+				}
 			case []byte:
 				optionData = append(optionData, t...)
 			case net.IP:
@@ -393,5 +438,8 @@ func (p *parser) parseOption() (dhcp4.OptionCode, []byte, error) {
 		}
 	}
 
+	if block.schema.maxlen != unlimited && len(optionData) > int(block.schema.maxlen) {
+		return 0, nil, fmt.Errorf("Incorrect option length on line %d", n.line)
+	}
 	return block.code, optionData, nil
 }

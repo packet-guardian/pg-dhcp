@@ -66,7 +66,7 @@ func (l *lexer) next() *lexToken {
 		if c == '"' {
 			tok = l.consumeString() // Start after double quote
 			break
-		} else if isNumber(c) {
+		} else if isNumber(c) || c == '-' {
 			l.r.UnreadByte()
 			tok = l.consumeNumeric()
 			break
@@ -138,6 +138,7 @@ func (l *lexer) consumeNumeric() []*lexToken {
 	buf := bytes.Buffer{}
 	dotCount := 0
 	hasSlash := false
+	negative := false
 
 	for {
 		b, err := l.r.ReadByte()
@@ -154,6 +155,9 @@ func (l *lexer) consumeNumeric() []*lexToken {
 		} else if b == '/' {
 			buf.WriteByte(b)
 			hasSlash = true
+			continue
+		} else if b == '-' {
+			negative = true
 			continue
 		}
 		l.r.UnreadByte()
@@ -184,12 +188,22 @@ func (l *lexer) consumeNumeric() []*lexToken {
 			toks[0].value = ip
 		}
 	} else if dotCount == 0 { // Number
-		num, err := strconv.Atoi(buf.String())
-		if err != nil {
-			toks[0].token = ILLEGAL
+		if negative {
+			num, err := strconv.ParseInt(buf.String(), 10, 64)
+			if err != nil {
+				toks[0].token = ILLEGAL
+			} else {
+				toks[0].token = NUMBER
+				toks[0].value = num * -1
+			}
 		} else {
-			toks[0].token = NUMBER
-			toks[0].value = num
+			num, err := strconv.ParseUint(buf.String(), 10, 64)
+			if err != nil {
+				toks[0].token = ILLEGAL
+			} else {
+				toks[0].token = NUMBER
+				toks[0].value = num
+			}
 		}
 	}
 	return toks
@@ -208,7 +222,15 @@ func (l *lexer) consumeIdent() []*lexToken {
 		}
 		buf.WriteByte(b)
 	}
-	tok := &lexToken{token: lookup(buf.String()), value: buf.String()}
+	var tok *lexToken
+	s := buf.String()
+	if s == "true" {
+		tok = &lexToken{token: BOOLEAN, value: true}
+	} else if s == "false" {
+		tok = &lexToken{token: BOOLEAN, value: true}
+	} else {
+		tok = &lexToken{token: lookup(buf.String()), value: buf.String()}
+	}
 	return []*lexToken{tok}
 }
 

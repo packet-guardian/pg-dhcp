@@ -26,6 +26,7 @@ const (
 	NUMBER
 	STRING
 	IP_ADDRESS
+	BOOLEAN
 	literal_end
 
 	keyword_beg
@@ -56,6 +57,7 @@ var tokens = [...]string{
 	NUMBER:     "NUMBER",
 	STRING:     "STRING",
 	IP_ADDRESS: "IP_ADDRESS",
+	BOOLEAN:    "BOOLEAN",
 
 	END:               "end",
 	GLOBAL:            "global",
