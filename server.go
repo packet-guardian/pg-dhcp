@@ -27,7 +27,6 @@ type Handler struct {
 	gatewayCache map[string]*network
 	gatewayMutex sync.Mutex
 	c            *ServerConfig
-	ro           bool
 }
 
 // NewDHCPServer creates and sets up a new DHCP Handler with the give configuration.
@@ -71,18 +70,6 @@ func startLogger(c *ServerConfig) {
 func (h *Handler) ListenAndServe() error {
 	h.c.Log.Info("Starting DHCP server...")
 	return dhcp4.ListenAndServe(h)
-}
-
-// Readonly will force the DHCP Handler into a mode where it will process a request
-// as usual but will never return anything to the client. This can be used to perhaps
-// test if traffic is getting to the server without actually doing anything.
-func (h *Handler) Readonly() {
-	h.ro = true
-}
-
-// Respond disables readonly mode.
-func (h *Handler) Respond() {
-	h.ro = false
 }
 
 // LoadLeases will import any current leases saved to the database.
@@ -160,14 +147,6 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 		response = h.handleDecline(p, options)
 	}
 	return response
-}
-
-// Only allows real packet returns if not in readonly mode
-func (h *Handler) readOnlyFilter(p dhcp4.Packet) dhcp4.Packet {
-	if h.ro {
-		return nil
-	}
-	return p
 }
 
 // Handle DHCP DISCOVER messages
@@ -249,14 +228,14 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 	// Get options
 	leaseOptions := pool.getOptions(device.IsRegistered())
 	// Send an offer
-	return h.readOnlyFilter(dhcp4.ReplyPacket(
+	return dhcp4.ReplyPacket(
 		p,
 		dhcp4.Offer,
 		c.global.serverIdentifier,
 		lease.IP,
 		pool.getLeaseTime(0, device.IsRegistered()),
 		leaseOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList]),
-	))
+	)
 }
 
 // Handle DHCP REQUEST messages
@@ -271,7 +250,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 	}
 
 	if len(reqIP) != 4 || reqIP.Equal(net.IPv4zero) {
-		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
 	// Get a device object associated with the MAC
@@ -281,7 +260,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"mac":   p.CHAddr().String(),
 			"error": err,
 		}).Error("Error getting device")
-		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
 	// Check device standing
@@ -306,7 +285,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		h.gatewayMutex.Unlock()
 		if !ok {
 			// That gateway hasn't been seen before, it needs to go through DISCOVER
-			return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
+			return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 		}
 	}
 
@@ -315,7 +294,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"ip":         reqIP.String(),
 			"registered": device.IsRegistered(),
 		}).Info("Got a REQUEST for IP not in a scope")
-		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
 	lease, pool := network.getLeaseByIP(reqIP, device.IsRegistered())
@@ -326,7 +305,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"network":    network.name,
 			"registered": device.IsRegistered(),
 		}).Info("Client tried to request a lease that doesn't exist")
-		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
 	if !bytes.Equal(lease.MAC, p.CHAddr()) {
@@ -337,7 +316,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"network":    network.name,
 			"registered": device.IsRegistered(),
 		}).Info("Client tried to request lease not belonging to them")
-		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
 	leaseDur := pool.getLeaseTime(0, device.IsRegistered())
@@ -352,7 +331,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"mac":   p.CHAddr().String(),
 			"error": err,
 		}).Error("Error saving lease")
-		return h.readOnlyFilter(dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil))
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 	leaseOptions := pool.getOptions(device.IsRegistered())
 
@@ -375,14 +354,14 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		}
 	}
 
-	return h.readOnlyFilter(dhcp4.ReplyPacket(
+	return dhcp4.ReplyPacket(
 		p,
 		dhcp4.ACK,
 		c.global.serverIdentifier,
 		lease.IP,
 		leaseDur,
 		leaseOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList]),
-	))
+	)
 }
 
 // Handle DHCP RELEASE messages
