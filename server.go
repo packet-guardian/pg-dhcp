@@ -337,7 +337,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"registered":  device.IsRegistered(),
 		"hostname":    lease.Hostname,
 		"action":      "request-ack",
-		"blacklisted": true,
+		"blacklisted": device.IsBlacklisted(),
 	}).Info("Acknowledging request")
 
 	if device.IsRegistered() {
