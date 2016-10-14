@@ -12,7 +12,11 @@ fmt:
 alltests: test lint vet
 
 test:
+ifdef verbose
+	@go test -race -v
+else
 	@go test -race
+endif
 
 coverage:
 	@go test -cover

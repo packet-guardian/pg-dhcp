@@ -31,7 +31,7 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 		Log:         verbose.New(""),
 	}
 
-	// Setup Confuration
+	// Setup Configuration
 	reader := strings.NewReader(testConfig)
 	c, err := newParser(bufio.NewReader(reader)).parse()
 	if err != nil {
