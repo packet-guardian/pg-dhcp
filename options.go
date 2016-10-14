@@ -17,19 +17,20 @@ const (
 
 var (
 	// The following are all the schemas used in the options defined below
-	booleanSchema  = &optionSchema{token: BOOLEAN, multi: 1, maxlen: 1}
-	singleIPSchema = &optionSchema{token: IP_ADDRESS, multi: 1, maxlen: 4}
-	multiIPSchema  = &optionSchema{token: IP_ADDRESS, multi: oneOrMore, maxlen: unlimited}
-	stringSchema   = &optionSchema{token: STRING, multi: 1, maxlen: unlimited}
-	int8Schema     = &optionSchema{token: NUMBER, multi: 1, maxlen: 1}
-	int16Schema    = &optionSchema{token: NUMBER, multi: 1, maxlen: 2}
-	int32Schema    = &optionSchema{token: NUMBER, multi: 1, maxlen: 4}
+	booleanSchema  = &optionSchema{token: BOOLEAN, multi: 1, maxlen: 1, multipleOf: 1}
+	singleIPSchema = &optionSchema{token: IP_ADDRESS, multi: 1, maxlen: 4, multipleOf: 4}
+	multiIPSchema  = &optionSchema{token: IP_ADDRESS, multi: oneOrMore, maxlen: unlimited, multipleOf: 4}
+	stringSchema   = &optionSchema{token: STRING, multi: 1, maxlen: unlimited, multipleOf: 1}
+	int8Schema     = &optionSchema{token: NUMBER, multi: 1, maxlen: 1, multipleOf: 1}
+	int16Schema    = &optionSchema{token: NUMBER, multi: 1, maxlen: 2, multipleOf: 2}
+	int32Schema    = &optionSchema{token: NUMBER, multi: 1, maxlen: 4, multipleOf: 4}
 )
 
 type optionSchema struct {
-	token  token
-	multi  multiple // How many of the token are allowed
-	maxlen length   // Maximum number of bytes the option can be
+	token      token
+	multi      multiple // How many of the token are allowed
+	multipleOf int
+	maxlen     length // Maximum number of bytes the option can be
 }
 
 type dhcpOptionBlock struct {

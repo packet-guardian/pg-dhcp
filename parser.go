@@ -447,5 +447,8 @@ func (p *parser) parseOption() (dhcp4.OptionCode, []byte, error) {
 	if block.schema.maxlen != unlimited && len(optionData) > int(block.schema.maxlen) {
 		return 0, nil, fmt.Errorf("Incorrect option length on line %d", n.line)
 	}
+	if len(optionData)%block.schema.multipleOf != 0 {
+		return 0, nil, fmt.Errorf("Incorrect option length on line %d", n.line)
+	}
 	return block.code, optionData, nil
 }
