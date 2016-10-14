@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/onesimus-systems/dhcp4"
@@ -116,7 +117,7 @@ func (p *parser) parseNetwork() error {
 	if nameToken.token != STRING {
 		return fmt.Errorf("Expected STRING on line %d", nameToken.line)
 	}
-	name := nameToken.value.(string)
+	name := strings.ToLower(nameToken.value.(string))
 
 	if _, exists := p.c.networks[name]; exists {
 		return fmt.Errorf("Network %s already declared, line %d", name, nameToken.line)
@@ -262,7 +263,9 @@ mainLoop:
 			break mainLoop
 		case RANGE:
 			if nPool.rangeStart != nil {
-				return nil, fmt.Errorf("Range redeclared on line %d", tok.line)
+				// If we encounter another range statement, assume it's a new Pool block
+				p.l.unread()
+				break mainLoop
 			}
 			startIP := p.l.next()
 			if startIP.token != IP_ADDRESS {
@@ -297,6 +300,9 @@ func (p *parser) parseSettingsBlock() (*settings, error) {
 
 	for {
 		tok := p.l.next()
+		if tok.token == COMMENT {
+			continue
+		}
 		p.l.unread()
 		if !tok.token.isSetting() {
 			break
