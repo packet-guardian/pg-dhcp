@@ -221,15 +221,15 @@ var options = map[string]*dhcpOptionBlock{
 	// 	code:   dhcp4.OptionVendorSpecificInformation,
 	// 	schema: stringSchema,
 	// },
-	"netbiod-over-tcpip-name-server": &dhcpOptionBlock{
+	"netbios-over-tcpip-name-server": &dhcpOptionBlock{
 		code:   dhcp4.OptionNetBIOSOverTCPIPNameServer,
 		schema: multiIPSchema,
 	},
-	"netbiod-over-tcpip-datagram-distribution-server": &dhcpOptionBlock{
+	"netbios-over-tcpip-datagram-distribution-server": &dhcpOptionBlock{
 		code:   dhcp4.OptionNetBIOSOverTCPIPDatagramDistributionServer,
 		schema: multiIPSchema,
 	},
-	"netbiod-over-tcpip-node-type": &dhcpOptionBlock{
+	"netbios-over-tcpip-node-type": &dhcpOptionBlock{
 		code:   dhcp4.OptionNetBIOSOverTCPIPNodeType,
 		schema: int8Schema,
 	},
