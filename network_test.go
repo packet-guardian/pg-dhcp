@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lfkeitel/verbose"
 	d4 "github.com/onesimus-systems/dhcp4"
 )
 
@@ -27,6 +28,7 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 		DeviceStore: ds,
 		Env:         EnvTesting,
 		LogPath:     "",
+		Log:         verbose.New(""),
 	}
 
 	// Setup Confuration

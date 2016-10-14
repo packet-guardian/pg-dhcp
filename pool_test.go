@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lfkeitel/verbose"
 )
 
 func TestIPGiveOut(t *testing.T) {
@@ -18,6 +20,7 @@ func TestIPGiveOut(t *testing.T) {
 		DeviceStore: &testDeviceStore{},
 		Env:         EnvTesting,
 		LogPath:     "",
+		Log:         verbose.New(""),
 	}
 
 	// Setup Confuration

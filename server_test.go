@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lfkeitel/verbose"
 	d4 "github.com/onesimus-systems/dhcp4"
 )
 
@@ -31,6 +32,7 @@ func setUpTest1(t *testing.T) (*Handler, *testDeviceStore, *testLeaseStore) {
 		DeviceStore: ds,
 		Env:         EnvTesting,
 		LogPath:     "",
+		Log:         verbose.New(""),
 	}), ds, ls
 }
 

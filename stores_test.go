@@ -59,16 +59,25 @@ network network2
 end
 
 network network3
-    unregistered
-        subnet 10.0.8.0/24
-            pool
-                range 10.0.8.10 10.0.8.100
-            end
-            pool
-                range 10.0.8.120 10.0.8.250
-            end
-        end
-    end
+	unregistered
+		subnet 10.0.8.0/24
+			pool
+				range 10.0.8.10 10.0.8.100
+			end
+			pool
+				range 10.0.8.120 10.0.8.250
+			end
+		end
+	end
+end
+
+network network4
+	unregistered
+		subnet 10.0.9.0/24
+			range 10.0.9.10 10.0.9.100
+			range 10.0.9.120 10.0.9.250
+		end
+	end
 end
 `
 
