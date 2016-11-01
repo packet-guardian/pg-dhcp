@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lfkeitel/verbose"
 	d4 "github.com/onesimus-systems/dhcp4"
 
 	"github.com/lfkeitel/verbose"
@@ -32,9 +33,9 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 		Log:         verbose.New(""),
 	}
 
-	// Setup Confuration
+	// Setup Configuration
 	reader := strings.NewReader(testConfig)
-	c, err := newParser(bufio.NewScanner(reader)).parse()
+	c, err := newParser(bufio.NewReader(reader)).parse()
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
 	}

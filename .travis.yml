@@ -1,0 +1,15 @@
+language: go
+go:
+    - 1.7
+    - tip
+
+matrix:
+    allow_failures:
+        - go: tip
+
+branches:
+    only:
+        - master
+        - develop
+
+script: make test

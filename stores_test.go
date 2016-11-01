@@ -1,3 +1,7 @@
+// This source file is part of the PG-DHCP project.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package dhcp
 
 import (
@@ -14,7 +18,7 @@ global
 	registered
 		default-lease-time 86400
 		max-lease-time 86400
-		option domain-name-server 10.1.0.1, 10.1.0.2
+		option domain-name-server 10.1.0.1 10.1.0.2
 	end
 
 	unregistered
@@ -55,16 +59,25 @@ network network2
 end
 
 network network3
-    unregistered
-        subnet 10.0.8.0/24
-            pool
-                range 10.0.8.10 10.0.8.100
-            end
-            pool
-                range 10.0.8.120 10.0.8.250
-            end
-        end
-    end
+	unregistered
+		subnet 10.0.8.0/24
+			pool
+				range 10.0.8.10 10.0.8.100
+			end
+			pool
+				range 10.0.8.120 10.0.8.250
+			end
+		end
+	end
+end
+
+network network4
+	unregistered
+		subnet 10.0.9.0/24
+			range 10.0.9.10 10.0.9.100
+			range 10.0.9.120 10.0.9.250
+		end
+	end
 end
 `
 
