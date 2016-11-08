@@ -5,9 +5,7 @@
 package dhcp
 
 import (
-	"bufio"
 	"net"
-	"strings"
 	"testing"
 	"time"
 
@@ -32,8 +30,7 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 	}
 
 	// Setup Configuration
-	reader := strings.NewReader(testConfig)
-	c, err := newParser(bufio.NewReader(reader)).parse()
+	c, err := ParseFile("./testdata/testConfig.conf")
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
 	}

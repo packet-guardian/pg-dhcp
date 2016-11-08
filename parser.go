@@ -50,6 +50,17 @@ mainLoop:
 			err = p.parseGlobal()
 		case NETWORK:
 			err = p.parseNetwork()
+		case INCLUDE:
+			n := p.l.next()
+			if n.token != STRING {
+				return nil, fmt.Errorf("Include must be a file path on line %d", n.line)
+			}
+			file, err := os.Open(n.value.(string))
+			if err != nil {
+				return nil, fmt.Errorf("Error including file %v: %v", n.value, err)
+			}
+			p.l.pushReader(bufio.NewReader(file))
+			continue
 		case EOF:
 			break mainLoop
 		default:

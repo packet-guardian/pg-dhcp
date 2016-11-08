@@ -18,10 +18,29 @@ type lexer struct {
 	buffer   []*lexToken
 	prev     *lexToken
 	readPrev bool
+	readers  []*bufio.Reader
 }
 
 func newLexer(r *bufio.Reader) *lexer {
-	return &lexer{r: r, line: 1}
+	return &lexer{
+		r:       r,
+		line:    1,
+		readers: make([]*bufio.Reader, 0),
+	}
+}
+
+func (l *lexer) pushReader(r *bufio.Reader) {
+	l.readers = append(l.readers, l.r)
+	l.r = r
+}
+
+func (l *lexer) popReader() bool {
+	if len(l.readers) == 0 {
+		return false
+	}
+	l.r = l.readers[len(l.readers)-1]
+	l.readers = l.readers[0 : len(l.readers)-1]
+	return true
 }
 
 // This function will make the lexer reread the previous token. This can
@@ -60,6 +79,9 @@ func (l *lexer) next() *lexToken {
 	for {
 		c, err := l.r.ReadByte()
 		if err != nil {
+			if l.popReader() {
+				continue
+			}
 			return &lexToken{token: EOF}
 		}
 
