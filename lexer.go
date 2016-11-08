@@ -227,7 +227,7 @@ func (l *lexer) consumeIdent() []*lexToken {
 	if s == "true" {
 		tok = &lexToken{token: BOOLEAN, value: true}
 	} else if s == "false" {
-		tok = &lexToken{token: BOOLEAN, value: true}
+		tok = &lexToken{token: BOOLEAN, value: false}
 	} else {
 		tok = &lexToken{token: lookup(buf.String()), value: buf.String()}
 	}
