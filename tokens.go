@@ -18,9 +18,12 @@ type lexToken struct {
 }
 
 const (
+	ANY token = -1
+
 	ILLEGAL token = iota
 	EOF
 	COMMENT
+	EOL
 
 	literal_beg
 	NUMBER

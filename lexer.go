@@ -50,10 +50,22 @@ func (l *lexer) unread() {
 }
 
 func (l *lexer) all() []*lexToken {
-	tokens := make([]*lexToken, 0)
+	var tokens []*lexToken
 	for {
 		tok := l.next()
 		if tok.token == EOF {
+			break
+		}
+		tokens = append(tokens, tok)
+	}
+	return tokens
+}
+
+func (l *lexer) untilNext(t token) []*lexToken {
+	var tokens []*lexToken
+	for {
+		tok := l.next()
+		if tok.token == t || tok.token == EOF {
 			break
 		}
 		tokens = append(tokens, tok)
@@ -94,6 +106,8 @@ func (l *lexer) next() *lexToken {
 			break
 		} else if c == '\n' {
 			l.line++
+			tok = []*lexToken{&lexToken{token: EOL}}
+			break
 		} else if c == '#' {
 			line := l.consumeLine()
 			tok = []*lexToken{
