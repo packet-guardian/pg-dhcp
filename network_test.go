@@ -11,8 +11,6 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	d4 "github.com/onesimus-systems/dhcp4"
-
-	"github.com/lfkeitel/verbose"
 )
 
 // TestGiveLeaseFromMultiplePools is targeted at the Network.getFreeLease()
