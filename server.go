@@ -338,7 +338,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"network":     network.name,
 		"registered":  device.IsRegistered(),
 		"hostname":    lease.Hostname,
-		"action":      "request-ack",
+		"action":      "request_ack",
 		"blacklisted": device.IsBlacklisted(),
 	}).Info("Acknowledging request")
 
@@ -500,8 +500,9 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 	leaseOptions := pool.getOptions(device.IsRegistered())
 
 	h.c.Log.WithFields(verbose.Fields{
-		"ip":  ip.String(),
-		"mac": p.CHAddr().String(),
+		"ip":     ip.String(),
+		"mac":    p.CHAddr().String(),
+		"action": "inform",
 	}).Info("Informing client")
 
 	return dhcp4.ReplyPacket(
