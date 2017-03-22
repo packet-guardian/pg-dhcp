@@ -139,6 +139,8 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 		response = h.handleRelease(p, options)
 	case dhcp4.Decline:
 		response = h.handleDecline(p, options)
+	case dhcp4.Inform:
+		response = h.handleInform(p, options)
 	}
 	return response
 }
@@ -467,4 +469,47 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		}).Error("Error saving lease")
 	}
 	return nil
+}
+
+func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+	ip := p.CIAddr()
+	if ip == nil || ip.Equal(net.IPv4zero) {
+		return nil
+	}
+
+	network := c.searchNetworksFor(ip)
+	if network == nil {
+		return nil
+	}
+
+	pool := network.getPoolOfIP(ip)
+	if pool == nil {
+		return nil
+	}
+
+	// Get a device object associated with the MAC
+	device, err := h.c.DeviceStore.GetDeviceByMAC(p.CHAddr())
+	if err != nil {
+		h.c.Log.WithFields(verbose.Fields{
+			"mac":   p.CHAddr().String(),
+			"error": err,
+		}).Error("Error getting device")
+		return nil
+	}
+
+	leaseOptions := pool.getOptions(device.IsRegistered())
+
+	h.c.Log.WithFields(verbose.Fields{
+		"ip":  ip.String(),
+		"mac": p.CHAddr().String(),
+	}).Info("Informing client")
+
+	return dhcp4.ReplyPacket(
+		p,
+		dhcp4.ACK,
+		c.global.serverIdentifier,
+		net.IP([]byte{0, 0, 0, 0}),
+		0,
+		leaseOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList]),
+	)
 }

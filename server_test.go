@@ -5,10 +5,8 @@
 package dhcp
 
 import (
-	"bufio"
 	"bytes"
 	"net"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,8 +16,7 @@ import (
 
 func setUpTest1(t *testing.T) (*Handler, *testDeviceStore, *testLeaseStore) {
 	// Setup Confuration
-	reader := strings.NewReader(testConfig)
-	c, err := newParser(bufio.NewReader(reader)).parse()
+	c, err := ParseFile("./testdata/testConfig.conf")
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
 	}
@@ -206,8 +203,7 @@ func checkOptions(p d4.Packet, ops d4.Options, t *testing.T) d4.Options {
 
 func BenchmarkDHCPDiscover(b *testing.B) {
 	// Setup Confuration
-	reader := strings.NewReader(testConfig)
-	c, err := newParser(bufio.NewReader(reader)).parse()
+	c, err := ParseFile("./testdata/testConfig.conf")
 	if err != nil {
 		b.Fatalf("Test config failed parsing: %v", err)
 	}
