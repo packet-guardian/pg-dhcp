@@ -115,9 +115,6 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 			}).Critical("Recovering from DHCP panic")
 		}
 	}()
-	if msgType == dhcp4.Inform {
-		return nil
-	}
 
 	// Log every message
 	if server, ok := options[dhcp4.OptionServerIdentifier]; !ok || net.IP(server).Equal(c.global.serverIdentifier) {
@@ -453,11 +450,11 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 	h.c.Log.WithFields(verbose.Fields{
-		"ip":        lease.IP.String(),
-		"mac":       lease.MAC.String(),
-		"network":   network.name,
-		"registerd": device.IsRegistered(),
-		"action":    "decline",
+		"ip":         lease.IP.String(),
+		"mac":        lease.MAC.String(),
+		"network":    network.name,
+		"registered": device.IsRegistered(),
+		"action":     "decline",
 	}).Notice("Abandoned lease")
 	lease.IsAbandoned = true
 	lease.Start = time.Unix(1, 0)
