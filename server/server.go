@@ -5,7 +5,7 @@
 // TODO: Clean up the handler functions. There's a lot of duplicated code that
 // could be extracted to a function.
 
-package dhcp
+package server
 
 import (
 	"bytes"

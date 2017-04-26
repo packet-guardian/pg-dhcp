@@ -7,28 +7,28 @@ doc:
 	@godoc -http=:6060 -index
 
 fmt:
-	@go fmt
+	@go fmt $$(go list ./... | grep -v 'vendor/')
 
 alltests: test lint vet
 
 test:
 ifdef verbose
-	@go test -race -v
+	@go test -race -v $$(go list ./... | grep -v 'vendor/')
 else
-	@go test -race
+	@go test -race $$(go list ./... | grep -v 'vendor/')
 endif
 
 coverage:
-	@go test -cover
+	@go test -cover $$(go list ./... | grep -v 'vendor/')
 
 benchmark:
 	@echo "Running tests..."
-	@go test -bench=.
+	@go test -bench=. $$(go list ./... | grep -v 'vendor/')
 
 # https://github.com/golang/lint
 # go get github.com/golang/lint/golint
 lint:
-	@golint ./src/...
+	@golint $$(go list ./... | grep -v 'vendor/')
 
 vet:
-	@go vet
+	@go vet $$(go list ./... | grep -v 'vendor/')
