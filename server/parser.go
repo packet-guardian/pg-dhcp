@@ -130,6 +130,9 @@ func (p *parser) parseNetwork() error {
 		return fmt.Errorf("Expected STRING on line %d", nameToken.line)
 	}
 	name := strings.ToLower(nameToken.value.(string))
+	if len(name) > 255 {
+		return fmt.Errorf("Network name is too long on line %d", nameToken.line)
+	}
 
 	if _, exists := p.c.networks[name]; exists {
 		return fmt.Errorf("Network %s already declared, line %d", name, nameToken.line)

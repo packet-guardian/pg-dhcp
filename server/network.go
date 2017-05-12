@@ -10,6 +10,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/packet-guardian/pg-dhcp/store"
 )
 
 type network struct {
@@ -140,7 +142,7 @@ func (n *network) getPoolOfIP(ip net.IP) *pool {
 	return nil
 }
 
-func (n *network) getFreeLease(e *ServerConfig, registered bool) (*Lease, *pool) {
+func (n *network) getFreeLease(e *ServerConfig, registered bool) (*store.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
@@ -154,7 +156,7 @@ func (n *network) getFreeLease(e *ServerConfig, registered bool) (*Lease, *pool)
 	return nil, nil
 }
 
-func (n *network) getFreeLeaseDesperate(e *ServerConfig, registered bool) (*Lease, *pool) {
+func (n *network) getFreeLeaseDesperate(e *ServerConfig, registered bool) (*store.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
@@ -168,7 +170,7 @@ func (n *network) getFreeLeaseDesperate(e *ServerConfig, registered bool) (*Leas
 	return nil, nil
 }
 
-func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*Lease, *pool) {
+func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*store.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
@@ -184,7 +186,7 @@ func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*Lease, 
 	return nil, nil
 }
 
-func (n *network) getLeaseByIP(ip net.IP, registered bool) (*Lease, *pool) {
+func (n *network) getLeaseByIP(ip net.IP, registered bool) (*store.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue

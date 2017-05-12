@@ -5,10 +5,10 @@
 package server
 
 import (
-	"net"
-	"time"
-
 	"github.com/lfkeitel/verbose"
+	"github.com/packet-guardian/pg-dhcp/events"
+	"github.com/packet-guardian/pg-dhcp/store"
+	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
 type Environment string
@@ -20,40 +20,11 @@ const (
 )
 
 type ServerConfig struct {
-	LeaseStore  LeaseStore
-	DeviceStore DeviceStore
-	Log         *verbose.Logger
-	LogPath     string
-	Env         Environment
-}
-
-type LeaseStore interface {
-	GetAllLeases() ([]*Lease, error)
-	GetLeaseByIP(net.IP) (*Lease, error)
-
-	GetRecentLeaseByMAC(net.HardwareAddr) (*Lease, error)
-	GetAllLeasesByMAC(net.HardwareAddr) ([]*Lease, error)
-
-	CreateLease(*Lease) error
-	UpdateLease(*Lease) error
-	DeleteLease(*Lease) error
-
-	SearchLeases(string, ...interface{}) ([]*Lease, error)
-}
-
-type DeviceStore interface {
-	GetDeviceByMAC(net.HardwareAddr) (Device, error)
-}
-
-type Device interface {
-	SetLastSeen(time.Time)
-	GetID() int
-	GetMAC() net.HardwareAddr
-	GetUsername() string
-	IsBlacklisted() bool
-	IsExpired() bool
-	IsRegistered() bool
-	Save() error
+	Verification verification.Verifier
+	Env          Environment
+	Log          *verbose.Logger
+	Store        *store.Store
+	Events       events.Emitter
 }
 
 func (s *ServerConfig) IsTesting() bool {

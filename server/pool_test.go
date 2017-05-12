@@ -10,18 +10,26 @@ import (
 	"time"
 
 	"github.com/lfkeitel/verbose"
+	"github.com/packet-guardian/pg-dhcp/events"
+	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
 func TestIPGiveOut(t *testing.T) {
+	db, err := setUpLeaseStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tearDownLeaseStore(db)
+
 	sc := &ServerConfig{
-		LeaseStore:  &testLeaseStore{},
-		DeviceStore: &testDeviceStore{},
-		Env:         EnvTesting,
-		LogPath:     "",
-		Log:         verbose.New(""),
+		Verification: verification.NewNullVerifier(),
+		Env:          EnvTesting,
+		Log:          verbose.New(""),
+		Store:        db,
+		Events:       events.NewNullEmitter(),
 	}
 
-	// Setup Confuration
+	// Setup Configuration
 	c, err := ParseFile("./testdata/testConfig.conf")
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
@@ -50,14 +58,21 @@ func BenchmarkLeaseGiveOutLastLeaseNet22(b *testing.B) {
 }
 
 func benchmarkPool(name string, b *testing.B) {
+	db, err := setUpLeaseStore()
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer tearDownLeaseStore(db)
+
 	sc := &ServerConfig{
-		LeaseStore:  &testLeaseStore{},
-		DeviceStore: &testDeviceStore{},
-		Env:         EnvTesting,
-		LogPath:     "",
+		Verification: verification.NewNullVerifier(),
+		Env:          EnvTesting,
+		Log:          verbose.New(""),
+		Store:        db,
+		Events:       events.NewNullEmitter(),
 	}
 
-	// Setup Confuration
+	// Setup Configuration
 	c, err := ParseFile("./testdata/testConfig.conf")
 	if err != nil {
 		b.Fatalf("Test config failed parsing: %v", err)

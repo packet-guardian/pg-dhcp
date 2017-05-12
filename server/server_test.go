@@ -12,42 +12,46 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	d4 "github.com/onesimus-systems/dhcp4"
+	"github.com/packet-guardian/pg-dhcp/events"
+	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
-func setUpTest1(t *testing.T) (*Handler, *testDeviceStore, *testLeaseStore) {
-	// Setup Confuration
+type fatalLogger interface {
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+}
+
+func setUpTest1(t fatalLogger) *Handler {
+	db, err := setUpLeaseStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Setup Configuration
 	c, err := ParseFile("./testdata/testConfig.conf")
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
 	}
 
-	ds := &testDeviceStore{}
-	ls := &testLeaseStore{}
+	sc := &ServerConfig{
+		Verification: verification.NewNullVerifier(),
+		Env:          EnvTesting,
+		Log:          verbose.New(""),
+		Store:        db,
+		Events:       events.NewNullEmitter(),
+	}
 
-	return NewDHCPServer(c, &ServerConfig{
-		LeaseStore:  ls,
-		DeviceStore: ds,
-		Env:         EnvTesting,
-		LogPath:     "",
-		Log:         verbose.New(""),
-	}), ds, ls
+	return NewDHCPServer(c, sc)
+}
+
+func tearDownTest1(h *Handler) {
+	tearDownLeaseStore(h.c.Store)
 }
 
 func TestDiscover(t *testing.T) {
-	server, ds, _ := setUpTest1(t)
+	server := setUpTest1(t)
+	defer tearDownTest1(server)
 	mac, _ := net.ParseMAC("12:34:56:12:34:56")
-
-	regTestDevice := &testDevice{
-		store:      ds,
-		registered: true,
-		mac:        mac,
-	}
-
-	unregTestDevice := &testDevice{
-		store:      ds,
-		registered: false,
-		mac:        mac,
-	}
 
 	// Round 1 - Test Registered Device
 	// Create test request packet
@@ -61,7 +65,6 @@ func TestDiscover(t *testing.T) {
 	p.SetGIAddr(net.ParseIP("10.0.1.5"))
 
 	// Process a DISCOVER request
-	ds.setNextDevice(regTestDevice)
 	start := time.Now()
 	dp := server.ServeDHCP(p, d4.Discover, p.ParseOptions())
 	t.Logf("Discover took: %v", time.Since(start))
@@ -97,7 +100,6 @@ func TestDiscover(t *testing.T) {
 	p.SetGIAddr(net.ParseIP("10.0.1.5"))
 
 	// Process a REQUEST request
-	ds.setNextDevice(regTestDevice)
 	start = time.Now()
 	rp := server.ServeDHCP(p, d4.Request, p.ParseOptions())
 	t.Logf("Request took: %v", time.Since(start))
@@ -127,7 +129,6 @@ func TestDiscover(t *testing.T) {
 	p.SetGIAddr(net.ParseIP("10.0.1.5"))
 
 	// Process a DISCOVER request
-	ds.setNextDevice(unregTestDevice)
 	start = time.Now()
 	dp = server.ServeDHCP(p, d4.Discover, p.ParseOptions())
 	t.Logf("Discover took: %v", time.Since(start))
@@ -163,7 +164,6 @@ func TestDiscover(t *testing.T) {
 	p.SetGIAddr(net.ParseIP("10.0.1.5"))
 
 	// Process a REQUEST request
-	ds.setNextDevice(unregTestDevice)
 	start = time.Now()
 	rp = server.ServeDHCP(p, d4.Request, p.ParseOptions())
 	t.Logf("Request took: %v", time.Since(start))
@@ -202,29 +202,10 @@ func checkOptions(p d4.Packet, ops d4.Options, t *testing.T) d4.Options {
 }
 
 func BenchmarkDHCPDiscover(b *testing.B) {
-	// Setup Confuration
-	c, err := ParseFile("./testdata/testConfig.conf")
-	if err != nil {
-		b.Fatalf("Test config failed parsing: %v", err)
-	}
-
-	ds := &testDeviceStore{}
-	ls := &testLeaseStore{}
-
-	server := NewDHCPServer(c, &ServerConfig{
-		LeaseStore:  ls,
-		DeviceStore: ds,
-		Env:         EnvTesting,
-		LogPath:     "",
-	})
+	server := setUpTest1(b)
+	defer tearDownTest1(server)
 
 	mac, _ := net.ParseMAC("12:34:56:12:34:56")
-
-	unregTestDevice := &testDevice{
-		store:      ds,
-		registered: true,
-		mac:        mac,
-	}
 
 	pool := c.networks["network1"].subnets[1].pools[0] // Registered pool
 
@@ -242,8 +223,6 @@ func BenchmarkDHCPDiscover(b *testing.B) {
 	b.ResetTimer()
 	b.StopTimer()
 	for i := 0; i < b.N; i++ {
-		ds.setNextDevice(unregTestDevice)
-
 		b.StartTimer()
 		dp := server.ServeDHCP(p, d4.Discover, p.ParseOptions())
 		b.StopTimer()

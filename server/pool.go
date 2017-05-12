@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/onesimus-systems/dhcp4"
+	"github.com/packet-guardian/pg-dhcp/store"
 )
 
 var r = regexp.MustCompile(`\d+ bytes from .*`)
@@ -22,7 +23,7 @@ type pool struct {
 	rangeEnd      net.IP
 	settings      *settings
 	optionsCached bool
-	leases        map[string]*Lease // IP -> Lease
+	leases        map[string]*store.Lease // IP -> Lease
 	subnet        *subnet
 	nextFreeStart int
 	ipsInPool     int
@@ -31,7 +32,7 @@ type pool struct {
 func newPool() *pool {
 	return &pool{
 		settings: newSettingsBlock(),
-		leases:   make(map[string]*Lease),
+		leases:   make(map[string]*store.Lease),
 	}
 }
 
@@ -87,7 +88,7 @@ func (p *pool) getOptions(registered bool) dhcp4.Options {
 	return p.settings.options
 }
 
-func (p *pool) getFreeLease(s *ServerConfig) *Lease {
+func (p *pool) getFreeLease(s *ServerConfig) *store.Lease {
 	now := time.Now()
 
 	regFreeTime := p.subnet.network.global.registeredSettings.freeLeaseAfter
@@ -125,7 +126,7 @@ func (p *pool) getFreeLease(s *ServerConfig) *Lease {
 		}
 
 		// IP has no lease with it
-		l := NewLease(s.LeaseStore)
+		l := store.NewLease()
 		// All known leases have already been checked, which means if this IP
 		// is in use, we didn't do it. Mark as abandoned.
 		if !s.IsTesting() && isIPInUse(next) {
@@ -146,12 +147,12 @@ func (p *pool) getFreeLease(s *ServerConfig) *Lease {
 	return nil
 }
 
-func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *Lease {
+func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *store.Lease {
 	now := time.Now()
 
 	// No free leases, bring out the big guns
 	// Find the oldest expired lease
-	var longestExpiredLease *Lease
+	var longestExpiredLease *store.Lease
 	for _, l := range p.leases {
 		if l.End.After(now) { // Skip active leases
 			continue

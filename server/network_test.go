@@ -11,6 +11,8 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	d4 "github.com/onesimus-systems/dhcp4"
+	"github.com/packet-guardian/pg-dhcp/events"
+	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
 // TestGiveLeaseFromMultiplePools is targeted at the Network.getFreeLease()
@@ -20,13 +22,18 @@ import (
 // This test uses network3 in the test config and uses IP range 10.0.8.0/24
 // with only an unregistered block.
 func TestGiveLeaseFromMultiplePools(t *testing.T) {
-	ds := &testDeviceStore{}
+	db, err := setUpLeaseStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tearDownLeaseStore(db)
+
 	sc := &ServerConfig{
-		LeaseStore:  &testLeaseStore{},
-		DeviceStore: ds,
-		Env:         EnvTesting,
-		LogPath:     "",
-		Log:         verbose.New(""),
+		Verification: verification.NewNullVerifier(),
+		Env:          EnvTesting,
+		Log:          verbose.New(""),
+		Store:        db,
+		Events:       events.NewNullEmitter(),
 	}
 
 	// Setup Configuration
@@ -58,12 +65,6 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 	server := NewDHCPServer(c, sc)
 	mac, _ := net.ParseMAC("12:34:56:12:34:56")
 
-	unregTestDevice := &testDevice{
-		store:      ds,
-		registered: false,
-		mac:        mac,
-	}
-
 	opts := []d4.Option{
 		d4.Option{
 			Code:  d4.OptionParameterRequestList,
@@ -74,7 +75,6 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 	p.SetGIAddr(net.ParseIP("10.0.8.5"))
 
 	// Process a DISCOVER request
-	ds.setNextDevice(unregTestDevice)
 	dp := server.ServeDHCP(p, d4.Discover, p.ParseOptions())
 	if dp == nil {
 		t.Fatal("Processed packet is nil")
