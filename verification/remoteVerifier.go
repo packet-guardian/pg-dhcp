@@ -9,6 +9,8 @@ import (
 	"github.com/lfkeitel/verbose"
 )
 
+const connRWTimeout = 5 * time.Second
+
 type RemoteVerifier struct {
 	c              net.Conn
 	proto, address string
@@ -39,7 +41,7 @@ func NewRemoteVerifier(address string, logger *verbose.Logger, reconnectTimeout 
 }
 
 func (v *RemoteVerifier) dial() error {
-	conn, err := net.Dial(v.proto, v.address)
+	conn, err := net.DialTimeout(v.proto, v.address, 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -68,8 +70,14 @@ func (v *RemoteVerifier) redial() error {
 }
 
 func (v *RemoteVerifier) VerifyClient(mac net.HardwareAddr) (ClientStatus, error) {
+	v.c.SetDeadline(time.Now().Add(connRWTimeout))
+
+	// Version 1
+	// Packet type V
+	// Mac address
 	_, err := v.c.Write([]byte{1, 'V', mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]})
 	if err != nil {
+		v.logger.WithField("err", err).Error("failed to write to connection")
 		v.c.Close()
 		if err := v.redial(); err != nil {
 			return ClientDrop, err
@@ -77,16 +85,20 @@ func (v *RemoteVerifier) VerifyClient(mac net.HardwareAddr) (ClientStatus, error
 		return v.VerifyClient(mac)
 	}
 
+	// Version 1
+	// Packet type R
+	// Response 1 byte
 	buf := make([]byte, 3)
 	n, err := v.c.Read(buf)
 	if err != nil {
+		v.logger.WithField("err", err).Error("failed to read from connection")
 		v.c.Close()
 		if err := v.redial(); err != nil {
 			return ClientDrop, err
 		}
 		return v.VerifyClient(mac)
 	}
-	if n != 3 || buf[1] != 'R' {
+	if n != 3 || buf[0] != 1 || buf[1] != 'R' {
 		return ClientUnregistered, errors.New("Invalid verification response")
 	}
 
