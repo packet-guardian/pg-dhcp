@@ -7,9 +7,7 @@ package server
 import (
 	"fmt"
 	"net"
-	"os/exec"
 	"regexp"
-	"runtime"
 	"time"
 
 	"github.com/onesimus-systems/dhcp4"
@@ -127,15 +125,6 @@ func (p *pool) getFreeLease(s *ServerConfig) *store.Lease {
 
 		// IP has no lease with it
 		l := store.NewLease()
-		// All known leases have already been checked, which means if this IP
-		// is in use, we didn't do it. Mark as abandoned.
-		if !s.IsTesting() && isIPInUse(next) {
-			s.Log.Error("Abandoned IP %s", next.String())
-			l.IsAbandoned = true
-			continue
-		}
-
-		// Set IP and pool, add to leases map, return
 		l.IP = next
 		l.Network = p.subnet.network.name
 		l.Registered = !p.subnet.allowUnknown
@@ -175,10 +164,7 @@ func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *store.Lease {
 	// Now we're getting desperate
 	// Check abandoned leases for availability
 	for _, l := range p.leases {
-		if !l.IsAbandoned { // Skip non-abandoned leases
-			continue
-		}
-		if !isIPInUse(l.IP) {
+		if l.IsAbandoned { // Skip non-abandoned leases
 			l.IsAbandoned = false
 			return l
 		}
@@ -194,26 +180,6 @@ func (p *pool) print() {
 	fmt.Printf("\n---Pool %s - %s---\n", p.rangeStart.String(), p.rangeEnd.String())
 	fmt.Println("Pool settings")
 	p.settings.Print()
-}
-
-// isIPInUse will use the system ping utility to determine if an IP is in use.
-// At the moment this is Linux specific. I need to find a more cross platform
-// method to do ICMP probes. Right now abandonment checks will be disabled in
-// Windows machines.
-func isIPInUse(host net.IP) bool {
-	count := "-c"
-	wait := "1"
-	if runtime.GOOS == "windows" {
-		count = "-n"
-		wait = "500"
-	}
-
-	// -c/-n: packet count, -w: timeout in seconds
-	out, err := exec.Command("ping", count, "1", "-w", wait, host.String()).Output()
-	if err != nil {
-		return false
-	}
-	return (r.Find(out) != nil)
 }
 
 func (p *pool) printLeases() {

@@ -25,12 +25,11 @@ func NewEmptyLogger() *verbose.Logger {
 
 func NewLogger(c *Config, name string) *verbose.Logger {
 	logger := verbose.New(name)
-	if c.Logging.Disabled {
-		return logger
-	}
-
 	setupStdOutLogging(logger, c.Logging.Level)
-	setupFileLogging(logger, c.Logging.Level, c.Logging.Path)
+
+	if !c.Logging.Disabled {
+		setupFileLogging(logger, c.Logging.Level, c.Logging.Path)
+	}
 
 	return logger
 }

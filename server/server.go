@@ -39,6 +39,7 @@ func NewDHCPServer(conf *Config, s *ServerConfig) *Handler {
 		s.Log = createLogger()
 	}
 	c = conf
+
 	return &Handler{
 		c:            s,
 		gatewayCache: make(map[string]*network),
@@ -148,10 +149,7 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 
 // Handle DHCP DISCOVER messages
 func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
-	// Don't respond to requests on the same subnet
-	if p.GIAddr().Equal(net.IPv4zero) {
-		return nil
-	}
+	start := time.Now()
 
 	action, err := h.c.Verification.VerifyClient(p.CHAddr())
 	if err != nil {
@@ -163,19 +161,20 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 	}
 	registered := (action == verification.ClientRegistered)
 
+	gatewayIP := p.GIAddr().String()
 	// Get network object that the relay IP belongs to
 	h.gatewayMutex.Lock()
-	network, ok := h.gatewayCache[p.GIAddr().String()]
+	network, ok := h.gatewayCache[gatewayIP]
 	if !ok {
 		// That gateway hasn't been seen before, find its network
 		network = c.searchNetworksFor(p.GIAddr())
 		if network == nil {
 			h.gatewayMutex.Unlock()
-			h.c.Log.WithField("relay_ip", p.GIAddr().String()).Notice("Network not found")
+			h.c.Log.WithField("relay_ip", gatewayIP).Notice("Network not found")
 			return nil
 		}
 		// Add to cache for later
-		h.gatewayCache[p.GIAddr().String()] = network
+		h.gatewayCache[gatewayIP] = network
 	}
 	h.gatewayMutex.Unlock()
 
@@ -201,14 +200,6 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 		}
 	}
 
-	h.c.Log.WithFields(verbose.Fields{
-		"ip":         lease.IP.String(),
-		"mac":        p.CHAddr().String(),
-		"registered": registered,
-		"network":    network.name,
-		"action":     "offer",
-	}).Info("Offering lease to client")
-
 	h.c.Events.Emit(&events.Event{
 		Type: events.TypeOffer,
 		Subnet: &events.Subnet{
@@ -230,6 +221,15 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 	// No Save because this is a temporary "lease", if the client accepts then we commit to storage
 	// Get options
 	leaseOptions := pool.getOptions(registered)
+
+	h.c.Log.WithFields(verbose.Fields{
+		"ip":         lease.IP.String(),
+		"mac":        p.CHAddr().String(),
+		"registered": registered,
+		"network":    network.name,
+		"action":     "offer",
+		"took":       time.Since(start).String(),
+	}).Info("Offering lease to client")
 
 	// Send an offer
 	return dhcp4.ReplyPacket(
@@ -439,6 +439,9 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 }
 
 // Handle DHCP DECLINE messages
+// TODO: Decline would never work because the ciaddr field will always be 0
+// for a properly formed DECLINE message. Also, a DECLINE has nothing to do
+// with a client being registered or not.
 func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
 	reqIP := p.CIAddr()
 	if reqIP == nil || reqIP.Equal(net.IPv4zero) {
