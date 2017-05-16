@@ -1,5 +1,5 @@
-NAME := packet-guardian
-DESC := A captive portal for today's networks
+NAME := pg-dhcp
+DESC := DHCP server
 VERSION := $(shell git describe --tags --always --dirty)
 GOVERSION := $(shell go version)
 BUILDTIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
