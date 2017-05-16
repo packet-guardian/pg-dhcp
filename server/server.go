@@ -16,6 +16,7 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	dhcp4 "github.com/onesimus-systems/dhcp4"
+	"github.com/packet-guardian/pg-dhcp/events"
 	"github.com/packet-guardian/pg-dhcp/store"
 	"github.com/packet-guardian/pg-dhcp/verification"
 )
@@ -191,6 +192,11 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 				"network":    network.name,
 				"registered": registered,
 			}).Alert("No free leases available in network")
+			h.c.Events.Emit(&events.Event{
+				Type:       events.TypePoolExhausted,
+				Network:    network.name,
+				Registered: registered,
+			})
 			return nil
 		}
 	}
@@ -203,6 +209,18 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 		"action":     "offer",
 	}).Info("Offering lease to client")
 
+	h.c.Events.Emit(&events.Event{
+		Type: events.TypeOffer,
+		Subnet: &events.Subnet{
+			IP:   pool.subnet.net.IP.String(),
+			Mask: pool.subnet.net.IP.DefaultMask().String(),
+		},
+		Network:    network.name,
+		IP:         lease.IP.String(),
+		MAC:        lease.MAC.String(),
+		Registered: registered,
+	})
+
 	// Set temporary offered flag and end time
 	lease.Offered = true
 	lease.Start = time.Now()
@@ -212,6 +230,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 	// No Save because this is a temporary "lease", if the client accepts then we commit to storage
 	// Get options
 	leaseOptions := pool.getOptions(registered)
+
 	// Send an offer
 	return dhcp4.ReplyPacket(
 		p,
@@ -321,6 +340,21 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"action":     "request_ack",
 	}).Info("Acknowledging request")
 
+	h.c.Events.Emit(&events.Event{
+		Type: events.TypeRequestAck,
+		Subnet: &events.Subnet{
+			IP:   pool.subnet.net.IP.String(),
+			Mask: pool.subnet.net.IP.DefaultMask().String(),
+		},
+		Network:    network.name,
+		IP:         lease.IP.String(),
+		MAC:        lease.MAC.String(),
+		Hostname:   lease.Hostname,
+		Registered: registered,
+		Start:      lease.Start.Format(time.RFC3339),
+		End:        lease.End.Format(time.RFC3339),
+	})
+
 	return dhcp4.ReplyPacket(
 		p,
 		dhcp4.ACK,
@@ -357,8 +391,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	lease, _ := network.getLeaseByIP(reqIP, registered)
-	h.c.Log.Debugf("%#v", lease)
+	lease, pool := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
 		leaseMac := ""
 		if lease != nil {
@@ -374,6 +407,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		}).Notice("Client tried to release lease not belonging to them")
 		return nil
 	}
+
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":         lease.IP.String(),
 		"mac":        lease.MAC.String(),
@@ -381,6 +415,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"registered": registered,
 		"action":     "release",
 	}).Info("Releasing lease")
+
 	lease.Start = time.Unix(1, 0)
 	lease.End = time.Unix(1, 0)
 	if err := h.c.Store.PutLease(lease); err != nil {
@@ -389,6 +424,17 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"error": err,
 		}).Error("Error saving lease")
 	}
+
+	h.c.Events.Emit(&events.Event{
+		Type: events.TypeRelease,
+		Subnet: &events.Subnet{
+			IP:   pool.subnet.net.IP.String(),
+			Mask: pool.subnet.net.IP.DefaultMask().String(),
+		},
+		Network: network.name,
+		IP:      lease.IP.String(),
+		MAC:     lease.MAC.String(),
+	})
 	return nil
 }
 
@@ -418,7 +464,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	lease, _ := network.getLeaseByIP(reqIP, registered)
+	lease, pool := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
 		leaseMac := ""
 		if lease != nil {
@@ -434,6 +480,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		}).Notice("Client tried to decline lease not belonging to them")
 		return nil
 	}
+
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":         lease.IP.String(),
 		"mac":        lease.MAC.String(),
@@ -441,6 +488,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"registered": registered,
 		"action":     "decline",
 	}).Notice("Abandoned lease")
+
 	lease.IsAbandoned = true
 	lease.Start = time.Unix(1, 0)
 	lease.End = time.Unix(1, 0)
@@ -450,6 +498,17 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"error": err,
 		}).Error("Error saving lease")
 	}
+
+	h.c.Events.Emit(&events.Event{
+		Type: events.TypeDecline,
+		Subnet: &events.Subnet{
+			IP:   pool.subnet.net.IP.String(),
+			Mask: pool.subnet.net.IP.DefaultMask().String(),
+		},
+		Network: network.name,
+		IP:      lease.IP.String(),
+		MAC:     lease.MAC.String(),
+	})
 	return nil
 }
 
@@ -486,6 +545,17 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 		"mac":    p.CHAddr().String(),
 		"action": "inform",
 	}).Info("Informing client")
+
+	h.c.Events.Emit(&events.Event{
+		Type: events.TypeInform,
+		Subnet: &events.Subnet{
+			IP:   pool.subnet.net.IP.String(),
+			Mask: pool.subnet.net.IP.DefaultMask().String(),
+		},
+		Network: network.name,
+		IP:      ip.String(),
+		MAC:     p.CHAddr().String(),
+	})
 
 	return dhcp4.ReplyPacket(
 		p,

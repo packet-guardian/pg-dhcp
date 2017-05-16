@@ -23,9 +23,11 @@ type Config struct {
 		DeleteAfter      string
 		DatabaseFile     string
 	}
-	Events []struct {
-		Address string
-		Types   string
+	Events struct {
+		Address  string
+		Types    []string
+		Username string
+		Password string
 	}
 	Verification struct {
 		Address          string

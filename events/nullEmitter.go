@@ -6,4 +6,4 @@ func NewNullEmitter() *NullEmitter {
 	return &NullEmitter{}
 }
 
-func (e *NullEmitter) Emit(event Event) {}
+func (e *NullEmitter) Emit(event *Event) {}

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"time"
 
@@ -102,13 +103,26 @@ func main() {
 		}
 	}
 
-	// TODO: Start event emitter
+	var emitter events.Emitter
+	if e.Config.Events.Address == "" {
+		emitter = events.NewNullEmitter()
+	} else {
+		endpoint, err := url.Parse(e.Config.Events.Address)
+		if err != nil {
+			e.Log.Fatal("Invalid event endpoint url")
+		}
+		emitter = events.NewHTTPEmitter(
+			endpoint,
+			events.StringsToEventTypes(e.Config.Events.Types),
+			e.Config.Events.Username,
+			e.Config.Events.Password)
+	}
 
 	serverConfig := &server.ServerConfig{
 		Verification: verifier,
 		Log:          e.Log,
 		Store:        store,
-		Events:       events.NewNullEmitter(),
+		Events:       emitter,
 		Env:          server.EnvProd,
 	}
 
