@@ -4,7 +4,7 @@
 
 package server
 
-import "github.com/onesimus-systems/dhcp4"
+import "github.com/packet-guardian/pg-dhcp/dhcp"
 
 type multiple int // How many of a token type are allowed
 type length int   // The number of bytes an option can be in length

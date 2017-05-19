@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/lfkeitel/verbose"
-	d4 "github.com/onesimus-systems/dhcp4"
+	"github.com/packet-guardian/pg-dhcp/dhcp"
 	"github.com/packet-guardian/pg-dhcp/events"
 	"github.com/packet-guardian/pg-dhcp/verification"
 )
@@ -65,17 +65,17 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 	server := NewDHCPServer(c, sc)
 	mac, _ := net.ParseMAC("12:34:56:12:34:56")
 
-	opts := []d4.Option{
-		d4.Option{
-			Code:  d4.OptionParameterRequestList,
+	opts := []dhcp4.Option{
+		dhcp4.Option{
+			Code:  dhcp4.OptionParameterRequestList,
 			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
 		},
 	}
-	p := d4.RequestPacket(d4.Discover, mac, nil, nil, false, opts)
+	p := dhcp4.RequestPacket(dhcp4.Discover, mac, nil, nil, false, opts)
 	p.SetGIAddr(net.ParseIP("10.0.8.5"))
 
 	// Process a DISCOVER request
-	dp := server.ServeDHCP(p, d4.Discover, p.ParseOptions())
+	dp := server.ServeDHCP(p, dhcp4.Discover, p.ParseOptions())
 	if dp == nil {
 		t.Fatal("Processed packet is nil")
 	}

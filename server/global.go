@@ -5,7 +5,6 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"time"
 )
@@ -92,15 +91,4 @@ func (g *global) getSettings(registered bool) *settings {
 	mergeSettings(g.unregisteredSettings, g.settings)
 	g.unregOptionsCached = true
 	return g.unregisteredSettings
-}
-
-func (g *global) print() {
-	fmt.Println("\n---Global Configuration---")
-	fmt.Printf("Server Identifier: %s\n", g.serverIdentifier.String())
-	fmt.Println("\n--Global Settings--")
-	g.settings.Print()
-	fmt.Println("\n--Global Registered Settings--")
-	g.registeredSettings.Print()
-	fmt.Println("\n--Global Unregistered Settings--")
-	g.unregisteredSettings.Print()
 }

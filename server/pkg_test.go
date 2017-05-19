@@ -7,6 +7,7 @@ import (
 )
 
 func setUpLeaseStore() (*store.Store, error) {
+	os.Remove("testing.db")
 	return store.NewStore("testing.db")
 }
 
