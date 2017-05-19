@@ -16,7 +16,7 @@ import (
 
 	"strconv"
 
-	"github.com/onesimus-systems/dhcp4"
+	"github.com/packet-guardian/pg-dhcp/dhcp"
 )
 
 // ParseFile takes the file name to a configuration file.

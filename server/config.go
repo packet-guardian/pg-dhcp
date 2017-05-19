@@ -4,10 +4,7 @@
 
 package server
 
-import (
-	"fmt"
-	"net"
-)
+import "net"
 
 // A Config is the parsed object generated from a PG-DHCP configuration file.
 type Config struct {
@@ -19,14 +16,6 @@ func newConfig() *Config {
 	return &Config{
 		global:   newGlobal(),
 		networks: make(map[string]*network),
-	}
-}
-
-func (c *Config) print() {
-	fmt.Println("DHCP Configuration")
-	c.global.print()
-	for _, n := range c.networks {
-		n.print()
 	}
 }
 

@@ -6,7 +6,6 @@ package server
 
 import (
 	"bytes"
-	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -176,11 +175,14 @@ func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*store.L
 			continue
 		}
 		for _, p := range s.pools {
+			p.RLock()
 			for _, l := range p.leases {
 				if bytes.Equal(l.MAC, mac) {
+					p.RUnlock()
 					return l, p
 				}
 			}
+			p.RUnlock()
 		}
 	}
 	return nil, nil
@@ -192,24 +194,13 @@ func (n *network) getLeaseByIP(ip net.IP, registered bool) (*store.Lease, *pool)
 			continue
 		}
 		for _, p := range s.pools {
+			p.RLock()
 			if l, ok := p.leases[ip.String()]; ok {
+				p.RUnlock()
 				return l, p
 			}
+			p.RUnlock()
 		}
 	}
 	return nil, nil
-}
-
-func (n *network) print() {
-	fmt.Printf("\n---Network Configuration - %s---\n", n.name)
-	fmt.Println("\n--Network Settings--")
-	n.settings.Print()
-	fmt.Println("\n--Network Registered Settings--")
-	n.registeredSettings.Print()
-	fmt.Println("\n--Network Unregistered Settings--")
-	n.unregisteredSettings.Print()
-	fmt.Println("\n--Subnets in network--")
-	for _, s := range n.subnets {
-		s.print()
-	}
 }

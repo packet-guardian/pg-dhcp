@@ -5,11 +5,10 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"time"
 
-	"github.com/onesimus-systems/dhcp4"
+	"github.com/packet-guardian/pg-dhcp/dhcp"
 )
 
 type subnet struct {
@@ -69,15 +68,4 @@ func (s *subnet) getOptions(registered bool) dhcp4.Options {
 
 func (s *subnet) includes(ip net.IP) bool {
 	return s.net.Contains(ip)
-}
-
-func (s *subnet) print() {
-	fmt.Printf("\n---Subnet - %s---\n", s.net.String())
-	fmt.Printf("Registered: %t\n", !s.allowUnknown)
-	fmt.Println("Subnet Settings")
-	s.settings.Print()
-	fmt.Println("\n--Subnet Pools--")
-	for _, p := range s.pools {
-		p.print()
-	}
 }

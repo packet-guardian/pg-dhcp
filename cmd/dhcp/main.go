@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/config"
@@ -20,6 +22,7 @@ var (
 	testMainConfigFlag bool
 	testDHCPConfigFlag bool
 	verFlag            bool
+	cpuprofile         string
 
 	version   = ""
 	buildTime = ""
@@ -33,6 +36,7 @@ func init() {
 	flag.BoolVar(&testDHCPConfigFlag, "td", false, "Test DHCP server configuration file")
 	flag.BoolVar(&verFlag, "version", false, "Display version information")
 	flag.BoolVar(&verFlag, "v", verFlag, "Display version information")
+	flag.StringVar(&cpuprofile, "cpuprofile", "", "CPU profile path")
 }
 
 func main() {
@@ -51,6 +55,23 @@ func main() {
 	if testDHCPConfigFlag {
 		testDHCPConfig()
 		return
+	}
+
+	if cpuprofile != "" {
+		var err error
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+
+		go func() {
+			<-time.After(1 * time.Minute)
+			pprof.StopCPUProfile()
+			f.Close()
+		}()
 	}
 
 	var err error

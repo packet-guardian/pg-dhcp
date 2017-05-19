@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "J+kVue/HTH4sELlqMO4z0tx9DiA=",
+			"path": "github.com/boltdb/bolt",
+			"revision": "e9cf4fae01b5a8ff89d0ec6b32f0d9c9f79aefdd",
+			"revisionTime": "2017-01-31T19:20:18Z"
+		},
+		{
 			"checksumSHA1": "kkgAUuvwB1Aru20+lbk0t2ENHMY=",
 			"path": "github.com/lfkeitel/verbose",
 			"revision": "332f9e728b786c9a5ddfae80ac08ce341436766c",
@@ -27,12 +33,6 @@
 			"revisionTime": "2015-07-27T12:48:37Z"
 		},
 		{
-			"checksumSHA1": "d9CG7ot7QoNnv6VkWu/8d2h9M+k=",
-			"path": "github.com/onesimus-systems/dhcp4",
-			"revision": "0c6d61b871fffc4288a9b2543373e8fb7208eb8b",
-			"revisionTime": "2016-06-08T14:48:14Z"
-		},
-		{
 			"checksumSHA1": "tK8eFmQ0JeKpR3P0TjiGobzlIh0=",
 			"path": "golang.org/x/net/bpf",
 			"revision": "0f2be02c5ddfa7c7936000ad519b04c6c795eab3",
@@ -55,6 +55,12 @@
 			"path": "golang.org/x/net/ipv4",
 			"revision": "0f2be02c5ddfa7c7936000ad519b04c6c795eab3",
 			"revisionTime": "2016-10-01T18:52:36Z"
+		},
+		{
+			"checksumSHA1": "oVd5OHIvNHR5bhUvnBMPLVjaL6E=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "e4594059fe4cde2daf423055a596c2cd1e6c9adf",
+			"revisionTime": "2017-02-23T22:36:15Z"
 		}
 	],
 	"rootPath": "github.com/packet-guardian/pg-dhcp"

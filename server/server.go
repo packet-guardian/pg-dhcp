@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/lfkeitel/verbose"
-	dhcp4 "github.com/onesimus-systems/dhcp4"
+	"github.com/packet-guardian/pg-dhcp/dhcp"
 	"github.com/packet-guardian/pg-dhcp/events"
 	"github.com/packet-guardian/pg-dhcp/store"
 	"github.com/packet-guardian/pg-dhcp/verification"
@@ -248,6 +248,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil // Message not for this dhcp server
 	}
 
+	start := time.Now()
 	reqIP := net.IP(options[dhcp4.OptionRequestedIPAddress])
 	if reqIP == nil {
 		reqIP = net.IP(p.CIAddr())
@@ -338,6 +339,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"registered": registered,
 		"hostname":   lease.Hostname,
 		"action":     "request_ack",
+		"took":       time.Since(start).String(),
 	}).Info("Acknowledging request")
 
 	h.c.Events.Emit(&events.Event{
@@ -367,6 +369,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 
 // Handle DHCP RELEASE messages
 func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+	start := time.Now()
 	reqIP := p.CIAddr()
 	if reqIP == nil || reqIP.Equal(net.IPv4zero) {
 		return nil
@@ -414,6 +417,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"network":    network.name,
 		"registered": registered,
 		"action":     "release",
+		"took":       time.Since(start).String(),
 	}).Info("Releasing lease")
 
 	lease.Start = time.Unix(1, 0)
@@ -443,6 +447,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 // for a properly formed DECLINE message. Also, a DECLINE has nothing to do
 // with a client being registered or not.
 func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+	start := time.Now()
 	reqIP := p.CIAddr()
 	if reqIP == nil || reqIP.Equal(net.IPv4zero) {
 		return nil
@@ -490,6 +495,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"network":    network.name,
 		"registered": registered,
 		"action":     "decline",
+		"took":       time.Since(start).String(),
 	}).Notice("Abandoned lease")
 
 	lease.IsAbandoned = true
@@ -516,6 +522,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 }
 
 func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+	start := time.Now()
 	ip := p.CIAddr()
 	if ip == nil || ip.Equal(net.IPv4zero) {
 		return nil
@@ -547,6 +554,7 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 		"ip":     ip.String(),
 		"mac":    p.CHAddr().String(),
 		"action": "inform",
+		"took":   time.Since(start).String(),
 	}).Info("Informing client")
 
 	h.c.Events.Emit(&events.Event{
