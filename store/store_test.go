@@ -26,6 +26,7 @@ func TestLeaseStore(t *testing.T) {
 	if err := store.PutLease(lease); err != nil {
 		t.Fatal(err)
 	}
+	store.doFlush()
 
 	lease2, err := store.GetLease(lease.IP)
 	if err != nil {
@@ -49,6 +50,7 @@ func TestForEachLease(t *testing.T) {
 
 	store.PutLease(lease1)
 	store.PutLease(lease2)
+	store.doFlush()
 
 	var newLease1, newLease2 *Lease
 
