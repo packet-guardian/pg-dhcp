@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package server
+package sys
 
 import (
 	"net"
@@ -13,8 +13,8 @@ import (
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
-type pool struct {
-	sync.RWMutex
+type Pool struct {
+	m             sync.RWMutex
 	rangeStart    net.IP
 	rangeEnd      net.IP
 	settings      *settings
@@ -25,14 +25,14 @@ type pool struct {
 	ipsInPool     int
 }
 
-func newPool() *pool {
-	return &pool{
+func newPool() *Pool {
+	return &Pool{
 		settings: newSettingsBlock(),
 		leases:   make(map[string]*store.Lease),
 	}
 }
 
-func (p *pool) getCountOfIPs() int {
+func (p *Pool) getCountOfIPs() int {
 	if p.ipsInPool == 0 {
 		p.ipsInPool = dhcp4.IPRange(p.rangeStart, p.rangeEnd)
 	}
@@ -43,7 +43,7 @@ func (p *pool) getCountOfIPs() int {
 // If req is 0 then the default lease time is returned. Otherwise it will return the lower of
 // req and the maximum lease time. If the pool does not have an explicitly set duration for either,
 // it will get the duration from its subnet.
-func (p *pool) getLeaseTime(req time.Duration, registered bool) time.Duration {
+func (p *Pool) GetLeaseTime(req time.Duration, registered bool) time.Duration {
 	if req == 0 {
 		if p.settings.defaultLeaseTime > 0 {
 			return p.settings.defaultLeaseTime
@@ -69,7 +69,7 @@ func (p *pool) getLeaseTime(req time.Duration, registered bool) time.Duration {
 	return p.settings.maxLeaseTime
 }
 
-func (p *pool) getOptions(registered bool) dhcp4.Options {
+func (p *Pool) GetOptions(registered bool) dhcp4.Options {
 	if p.optionsCached {
 		return p.settings.options
 	}
@@ -84,38 +84,31 @@ func (p *pool) getOptions(registered bool) dhcp4.Options {
 	return p.settings.options
 }
 
-func (p *pool) getFreeLease(s *ServerConfig) *store.Lease {
-	p.Lock()
-	defer p.Unlock()
+func (p *Pool) getFreeLease() *store.Lease {
+	p.m.Lock()
+	defer p.m.Unlock()
 	now := time.Now()
 
 	regFreeTime := p.subnet.network.global.registeredSettings.freeLeaseAfter
 	unRegFreeTime := p.subnet.network.global.unregisteredSettings.freeLeaseAfter
 	// Find a candidate from the already used leases
 	for _, l := range p.leases {
-		l.RLock()
 		if l.IsAbandoned { // IP in use by a device we don't know about
-			l.RUnlock()
 			continue
 		}
 		if l.End.After(now) { // Active lease
-			l.RUnlock()
 			continue
 		}
 		if l.Offered && now.After(l.End) { // Lease was offered but not taken
 			l.Offered = false
-			l.RUnlock()
-			return l
+			return offerLease(l)
 		}
 		if !l.Registered && l.End.Add(unRegFreeTime).Before(now) { // Unregisted lease expired
-			l.RUnlock()
-			return l
+			return offerLease(l)
 		}
 		if l.Registered && l.End.Add(regFreeTime).Before(now) { // Registered lease expired
-			l.RUnlock()
-			return l
+			return offerLease(l)
 		}
-		l.RUnlock()
 	}
 
 	// No candidates, find the next available lease
@@ -137,58 +130,57 @@ func (p *pool) getFreeLease(s *ServerConfig) *store.Lease {
 		l.Network = p.subnet.network.name
 		l.Registered = !p.subnet.allowUnknown
 		p.leases[next.String()] = l
-		return l
+		return offerLease(l)
 	}
 
 	// We've exhausted all possibilities, admit defeat.
 	return nil
 }
 
-func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *store.Lease {
-	p.Lock()
-	defer p.Unlock()
+func offerLease(l *store.Lease) *store.Lease {
+	l.Offered = true
+	l.End = time.Now().Add(time.Duration(30) * time.Second) // Set a short end time so it's not offered to other clients
+	return l
+}
+
+func (p *Pool) getFreeLeaseDesperate() *store.Lease {
+	p.m.Lock()
+	defer p.m.Unlock()
 	now := time.Now()
 
 	// No free leases, bring out the big guns
 	// Find the oldest expired lease
 	var longestExpiredLease *store.Lease
 	for _, l := range p.leases {
-		l.RLock()
 		if l.End.After(now) { // Skip active leases
-			l.RUnlock()
 			continue
 		}
 
 		if longestExpiredLease == nil {
 			longestExpiredLease = l
-			l.RUnlock()
 			continue
 		}
 
 		if l.End.Before(longestExpiredLease.End) {
 			longestExpiredLease = l
 		}
-		l.RUnlock()
 	}
 
 	if longestExpiredLease != nil {
-		return longestExpiredLease
+		return offerLease(longestExpiredLease)
 	}
 
 	// Now we're getting desperate
 	// Check abandoned leases for availability
 	for _, l := range p.leases {
-		l.RLock()
 		if l.IsAbandoned { // Skip non-abandoned leases
 			l.IsAbandoned = false
-			l.RUnlock()
-			return l
+			return offerLease(l)
 		}
-		l.RUnlock()
 	}
 	return nil
 }
 
-func (p *pool) includes(ip net.IP) bool {
+func (p *Pool) includes(ip net.IP) bool {
 	return dhcp4.IPInRange(p.rangeStart, p.rangeEnd, ip)
 }

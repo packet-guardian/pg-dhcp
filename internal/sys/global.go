@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package server
+package sys
 
 import (
 	"net"
 	"time"
 )
 
-type global struct {
-	serverIdentifier     net.IP
+type Global struct {
+	ServerIdentifier     net.IP
 	settings             *settings
 	registeredSettings   *settings
 	regOptionsCached     bool
@@ -18,8 +18,8 @@ type global struct {
 	unregOptionsCached   bool
 }
 
-func newGlobal() *global {
-	return &global{
+func newGlobal() *Global {
+	return &Global{
 		settings:             newSettingsBlock(),
 		registeredSettings:   newSettingsBlock(),
 		unregisteredSettings: newSettingsBlock(),
@@ -29,7 +29,7 @@ func newGlobal() *global {
 // GetLeaseTime returns the lease time given the requested time req and if the client is registered.
 // If req is 0 then the default lease time is returned. Otherwise it will return the lower of
 // req and the maximum lease time. If a duration is not set for either, they will both be 1 week.
-func (g *global) getLeaseTime(req time.Duration, registered bool) time.Duration {
+func (g *Global) getLeaseTime(req time.Duration, registered bool) time.Duration {
 	if req <= 0 { // Default lease time
 		if registered && g.registeredSettings.defaultLeaseTime > 0 {
 			return g.registeredSettings.defaultLeaseTime
@@ -73,7 +73,7 @@ func (g *global) getLeaseTime(req time.Duration, registered bool) time.Duration 
 	return g.settings.maxLeaseTime
 }
 
-func (g *global) getSettings(registered bool) *settings {
+func (g *Global) getSettings(registered bool) *settings {
 	if registered && g.regOptionsCached {
 		return g.registeredSettings
 	} else if !registered && g.unregOptionsCached {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/config"
+	"github.com/packet-guardian/pg-dhcp/internal/sys"
 	"github.com/packet-guardian/pg-dhcp/server"
 	"github.com/packet-guardian/pg-dhcp/store"
 	"github.com/packet-guardian/pg-dhcp/utils"
@@ -95,7 +96,7 @@ func main() {
 		e.Log.Fatalf("DHCP networks file not found: %s", e.Config.Server.NetworksFile)
 	}
 
-	networks, err := server.ParseFile(e.Config.Server.NetworksFile)
+	networks, err := sys.ParseFile(e.Config.Server.NetworksFile)
 	if err != nil {
 		e.Log.WithField("error", err).Fatal("Error loading DHCP configuration")
 	}
@@ -106,13 +107,14 @@ func main() {
 	}
 
 	serverConfig := &server.ServerConfig{
-		Log:   e.Log,
-		Store: store,
-		Env:   server.EnvProd,
+		Log:        e.Log,
+		Store:      store,
+		Env:        server.EnvProd,
+		Identifier: networks.Global.ServerIdentifier,
 	}
 
 	handler := server.NewDHCPServer(networks, serverConfig)
-	if err := handler.LoadLeases(); err != nil {
+	if err := sys.LoadLeases(store, networks); err != nil {
 		e.Log.WithField("error", err).Fatal("Couldn't load leases")
 	}
 
@@ -147,7 +149,7 @@ func testMainConfig() {
 }
 
 func testDHCPConfig() {
-	_, err := server.ParseFile(configFile)
+	_, err := sys.ParseFile(configFile)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)

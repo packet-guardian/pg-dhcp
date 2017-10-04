@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package server
+package sys
 
 import "testing"
 
@@ -21,7 +21,7 @@ func TestIncludedConfigs(t *testing.T) {
 	}
 
 	// Three networks means it processed the include correctly and it continued correctly
-	if len(c.networks) != 3 {
-		t.Fatalf("Incorrect number of networks. Expected 3, got %d", len(c.networks))
+	if len(c.Networks) != 3 {
+		t.Fatalf("Incorrect number of networks. Expected 3, got %d", len(c.Networks))
 	}
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package server
+package sys
 
 import (
 	"net"
@@ -16,8 +16,8 @@ type subnet struct {
 	settings      *settings
 	optionsCached bool
 	net           *net.IPNet
-	network       *network
-	pools         []*pool
+	network       *Network
+	pools         []*Pool
 }
 
 func newSubnet() *subnet {
