@@ -6,9 +6,7 @@ package server
 
 import (
 	"github.com/lfkeitel/verbose"
-	"github.com/packet-guardian/pg-dhcp/events"
 	"github.com/packet-guardian/pg-dhcp/store"
-	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
 type Environment string
@@ -20,11 +18,9 @@ const (
 )
 
 type ServerConfig struct {
-	Verification verification.Verifier
-	Env          Environment
-	Log          *verbose.Logger
-	Store        *store.Store
-	Events       events.Emitter
+	Env   Environment
+	Log   *verbose.Logger
+	Store *store.Store
 }
 
 func (s *ServerConfig) IsTesting() bool {

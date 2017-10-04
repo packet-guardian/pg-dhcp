@@ -18,20 +18,8 @@ type Config struct {
 		Path     string
 	}
 	Leases struct {
-		HistoryEnabled   bool
-		DeleteWithDevice bool
-		DeleteAfter      string
-		DatabaseFile     string
-	}
-	Events struct {
-		Address  string
-		Types    []string
-		Username string
-		Password string
-	}
-	Verification struct {
-		Address          string
-		ReconnectTimeout string
+		DeleteAfter  string // TODO: Run a job to clean up old leases
+		DatabaseFile string
 	}
 	Server struct {
 		NetworksFile string
@@ -101,12 +89,6 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 		c.Leases.DeleteAfter = "96h"
 	}
 	c.Leases.DatabaseFile = setStringOrDefault(c.Leases.DatabaseFile, "leases.db")
-
-	// Verification
-	c.Verification.ReconnectTimeout = setStringOrDefault(c.Verification.ReconnectTimeout, "10s")
-	if _, err := time.ParseDuration(c.Verification.ReconnectTimeout); err != nil {
-		c.Verification.ReconnectTimeout = "10s"
-	}
 
 	// DHCP
 	c.Server.NetworksFile = setStringOrDefault(c.Server.NetworksFile, "/etc/pg-dhcp/dhcp.conf")

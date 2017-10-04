@@ -16,9 +16,7 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	"github.com/packet-guardian/pg-dhcp/dhcp"
-	"github.com/packet-guardian/pg-dhcp/events"
 	"github.com/packet-guardian/pg-dhcp/store"
-	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
 var (
@@ -151,15 +149,7 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
 	start := time.Now()
 
-	action, err := h.c.Verification.VerifyClient(p.CHAddr())
-	if err != nil {
-		h.c.Log.WithField("error", err).Error("Verification error")
-		return nil
-	}
-	if action == verification.ClientDrop {
-		return nil
-	}
-	registered := (action == verification.ClientRegistered)
+	registered := false // TODO: Replace with real registration function
 
 	gatewayIP := p.GIAddr().String()
 	// Get network object that the relay IP belongs to
@@ -191,26 +181,9 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 				"network":    network.name,
 				"registered": registered,
 			}).Alert("No free leases available in network")
-			h.c.Events.Emit(&events.Event{
-				Type:       events.TypePoolExhausted,
-				Network:    network.name,
-				Registered: registered,
-			})
 			return nil
 		}
 	}
-
-	h.c.Events.Emit(&events.Event{
-		Type: events.TypeOffer,
-		Subnet: &events.Subnet{
-			IP:   pool.subnet.net.IP.String(),
-			Mask: pool.subnet.net.IP.DefaultMask().String(),
-		},
-		Network:    network.name,
-		IP:         lease.IP.String(),
-		MAC:        lease.MAC.String(),
-		Registered: registered,
-	})
 
 	// Set temporary offered flag and end time
 	lease.Offered = true
@@ -258,15 +231,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
-	action, err := h.c.Verification.VerifyClient(p.CHAddr())
-	if err != nil {
-		h.c.Log.WithField("error", err).Error("Verification error")
-		return nil
-	}
-	if action == verification.ClientDrop {
-		return nil
-	}
-	registered := (action == verification.ClientRegistered)
+	registered := false // TODO: Replace with real registration function
 
 	var network *network
 	// Get network object that the relay or client IP belongs to
@@ -342,21 +307,6 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		"took":       time.Since(start).String(),
 	}).Info("Acknowledging request")
 
-	h.c.Events.Emit(&events.Event{
-		Type: events.TypeRequestAck,
-		Subnet: &events.Subnet{
-			IP:   pool.subnet.net.IP.String(),
-			Mask: pool.subnet.net.IP.DefaultMask().String(),
-		},
-		Network:    network.name,
-		IP:         lease.IP.String(),
-		MAC:        lease.MAC.String(),
-		Hostname:   lease.Hostname,
-		Registered: registered,
-		Start:      lease.Start.Format(time.RFC3339),
-		End:        lease.End.Format(time.RFC3339),
-	})
-
 	return dhcp4.ReplyPacket(
 		p,
 		dhcp4.ACK,
@@ -375,15 +325,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	action, err := h.c.Verification.VerifyClient(p.CHAddr())
-	if err != nil {
-		h.c.Log.WithField("error", err).Error("Verification error")
-		return nil
-	}
-	if action == verification.ClientDrop {
-		return nil
-	}
-	registered := (action == verification.ClientRegistered)
+	registered := false // TODO: Replace with real registration function
 
 	network := c.searchNetworksFor(reqIP)
 	if network == nil {
@@ -394,7 +336,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	lease, pool := network.getLeaseByIP(reqIP, registered)
+	lease, _ := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
 		leaseMac := ""
 		if lease != nil {
@@ -428,17 +370,6 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"error": err,
 		}).Error("Error saving lease")
 	}
-
-	h.c.Events.Emit(&events.Event{
-		Type: events.TypeRelease,
-		Subnet: &events.Subnet{
-			IP:   pool.subnet.net.IP.String(),
-			Mask: pool.subnet.net.IP.DefaultMask().String(),
-		},
-		Network: network.name,
-		IP:      lease.IP.String(),
-		MAC:     lease.MAC.String(),
-	})
 	return nil
 }
 
@@ -453,15 +384,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	action, err := h.c.Verification.VerifyClient(p.CHAddr())
-	if err != nil {
-		h.c.Log.WithField("error", err).Error("Verification error")
-		return nil
-	}
-	if action == verification.ClientDrop {
-		return nil
-	}
-	registered := (action == verification.ClientRegistered)
+	registered := false // TODO: Replace with real registration function
 
 	network := c.searchNetworksFor(reqIP)
 	if network == nil {
@@ -472,7 +395,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	lease, pool := network.getLeaseByIP(reqIP, registered)
+	lease, _ := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
 		leaseMac := ""
 		if lease != nil {
@@ -507,17 +430,6 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"error": err,
 		}).Error("Error saving lease")
 	}
-
-	h.c.Events.Emit(&events.Event{
-		Type: events.TypeDecline,
-		Subnet: &events.Subnet{
-			IP:   pool.subnet.net.IP.String(),
-			Mask: pool.subnet.net.IP.DefaultMask().String(),
-		},
-		Network: network.name,
-		IP:      lease.IP.String(),
-		MAC:     lease.MAC.String(),
-	})
 	return nil
 }
 
@@ -538,15 +450,7 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 		return nil
 	}
 
-	action, err := h.c.Verification.VerifyClient(p.CHAddr())
-	if err != nil {
-		h.c.Log.WithField("error", err).Error("Verification error")
-		return nil
-	}
-	if action == verification.ClientDrop {
-		return nil
-	}
-	registered := (action == verification.ClientRegistered)
+	registered := false // TODO: Replace with real registration function
 
 	leaseOptions := pool.getOptions(registered)
 
@@ -556,17 +460,6 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 		"action": "inform",
 		"took":   time.Since(start).String(),
 	}).Info("Informing client")
-
-	h.c.Events.Emit(&events.Event{
-		Type: events.TypeInform,
-		Subnet: &events.Subnet{
-			IP:   pool.subnet.net.IP.String(),
-			Mask: pool.subnet.net.IP.DefaultMask().String(),
-		},
-		Network: network.name,
-		IP:      ip.String(),
-		MAC:     p.CHAddr().String(),
-	})
 
 	return dhcp4.ReplyPacket(
 		p,

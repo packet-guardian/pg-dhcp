@@ -4,17 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"runtime/pprof"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/config"
-	"github.com/packet-guardian/pg-dhcp/events"
 	"github.com/packet-guardian/pg-dhcp/server"
 	"github.com/packet-guardian/pg-dhcp/store"
 	"github.com/packet-guardian/pg-dhcp/utils"
-	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
 var (
@@ -108,43 +105,10 @@ func main() {
 		e.Log.WithField("error", err).Fatal("Error loading lease database")
 	}
 
-	var verifier verification.Verifier
-	if e.Config.Verification.Address == "" {
-		verifier = verification.NewNullVerifier()
-	} else {
-		var err error
-		for {
-			timeout, _ := time.ParseDuration(e.Config.Verification.ReconnectTimeout)
-			verifier, err = verification.NewRemoteVerifier(e.Config.Verification.Address, e.Log, timeout)
-			if err == nil {
-				break
-			}
-			e.Log.WithField("error", err).Alert("Failed connected to verification server. Trying again")
-			time.Sleep(2 * time.Second)
-		}
-	}
-
-	var emitter events.Emitter
-	if e.Config.Events.Address == "" {
-		emitter = events.NewNullEmitter()
-	} else {
-		endpoint, err := url.Parse(e.Config.Events.Address)
-		if err != nil {
-			e.Log.Fatal("Invalid event endpoint url")
-		}
-		emitter = events.NewHTTPEmitter(
-			endpoint,
-			events.StringsToEventTypes(e.Config.Events.Types),
-			e.Config.Events.Username,
-			e.Config.Events.Password)
-	}
-
 	serverConfig := &server.ServerConfig{
-		Verification: verifier,
-		Log:          e.Log,
-		Store:        store,
-		Events:       emitter,
-		Env:          server.EnvProd,
+		Log:   e.Log,
+		Store: store,
+		Env:   server.EnvProd,
 	}
 
 	handler := server.NewDHCPServer(networks, serverConfig)
