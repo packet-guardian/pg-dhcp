@@ -8,14 +8,14 @@ import "testing"
 
 func TestParser(t *testing.T) {
 	// TODO: Actually check the underlying config to make sure it matches the parsed config
-	_, err := ParseFile("./testdata/testConfig.conf")
+	_, err := ParseFile("../../testdata/testConfig.conf")
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestIncludedConfigs(t *testing.T) {
-	c, err := ParseFile("./testdata/includeConfig.conf")
+	c, err := ParseFile("../../testdata/includeConfig.conf")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -27,7 +27,7 @@ func setUpTest1(t fatalLogger) *Handler {
 	}
 
 	// Setup Configuration
-	c, err := sys.ParseFile("./testdata/testConfig.conf")
+	c, err := sys.ParseFile("../testdata/testConfig.conf")
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
 	}
