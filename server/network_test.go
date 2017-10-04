@@ -11,8 +11,6 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	"github.com/packet-guardian/pg-dhcp/dhcp"
-	"github.com/packet-guardian/pg-dhcp/events"
-	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
 // TestGiveLeaseFromMultiplePools is targeted at the Network.getFreeLease()
@@ -29,11 +27,9 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 	defer tearDownLeaseStore(db)
 
 	sc := &ServerConfig{
-		Verification: verification.NewNullVerifier(),
-		Env:          EnvTesting,
-		Log:          verbose.New(""),
-		Store:        db,
-		Events:       events.NewNullEmitter(),
+		Env:   EnvTesting,
+		Log:   verbose.New(""),
+		Store: db,
 	}
 
 	// Setup Configuration

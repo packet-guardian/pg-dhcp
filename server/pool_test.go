@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/lfkeitel/verbose"
-	"github.com/packet-guardian/pg-dhcp/events"
-	"github.com/packet-guardian/pg-dhcp/verification"
 )
 
 func TestIPGiveOut(t *testing.T) {
@@ -22,11 +20,9 @@ func TestIPGiveOut(t *testing.T) {
 	defer tearDownLeaseStore(db)
 
 	sc := &ServerConfig{
-		Verification: verification.NewNullVerifier(),
-		Env:          EnvTesting,
-		Log:          verbose.New(""),
-		Store:        db,
-		Events:       events.NewNullEmitter(),
+		Env:   EnvTesting,
+		Log:   verbose.New(""),
+		Store: db,
 	}
 
 	// Setup Configuration
@@ -65,11 +61,9 @@ func benchmarkPool(name string, b *testing.B) {
 	defer tearDownLeaseStore(db)
 
 	sc := &ServerConfig{
-		Verification: verification.NewNullVerifier(),
-		Env:          EnvTesting,
-		Log:          verbose.New(""),
-		Store:        db,
-		Events:       events.NewNullEmitter(),
+		Env:   EnvTesting,
+		Log:   verbose.New(""),
+		Store: db,
 	}
 
 	// Setup Configuration

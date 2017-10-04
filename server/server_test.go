@@ -12,21 +12,7 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	d4 "github.com/packet-guardian/pg-dhcp/dhcp"
-	"github.com/packet-guardian/pg-dhcp/events"
-	"github.com/packet-guardian/pg-dhcp/verification"
 )
-
-type testVerifier struct {
-	nextResponse verification.ClientStatus
-}
-
-func (v *testVerifier) VerifyClient(mac net.HardwareAddr) (verification.ClientStatus, error) {
-	return v.nextResponse, nil
-}
-
-func (v *testVerifier) setResponse(cs verification.ClientStatus) {
-	v.nextResponse = cs
-}
 
 type fatalLogger interface {
 	Fatal(args ...interface{})
@@ -46,11 +32,9 @@ func setUpTest1(t fatalLogger) *Handler {
 	}
 
 	sc := &ServerConfig{
-		Verification: &testVerifier{},
-		Env:          EnvTesting,
-		Log:          verbose.New(""),
-		Store:        db,
-		Events:       events.NewNullEmitter(),
+		Env:   EnvTesting,
+		Log:   verbose.New(""),
+		Store: db,
 	}
 
 	return NewDHCPServer(c, sc)
@@ -67,7 +51,6 @@ func TestDiscover(t *testing.T) {
 
 	// Round 1 - Test Registered Device
 	// Create test request packet
-	server.c.Verification.(*testVerifier).setResponse(verification.ClientRegistered)
 	opts := []d4.Option{
 		d4.Option{
 			Code:  d4.OptionParameterRequestList,
@@ -132,7 +115,6 @@ func TestDiscover(t *testing.T) {
 	}, t)
 
 	// ROUND 2 - Fight! Test Unregistered Device
-	server.c.Verification.(*testVerifier).setResponse(verification.ClientUnregistered)
 	opts = []d4.Option{
 		d4.Option{
 			Code:  d4.OptionParameterRequestList,
