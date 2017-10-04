@@ -18,9 +18,10 @@ const (
 )
 
 type ServerConfig struct {
-	Env   Environment
-	Log   *verbose.Logger
-	Store *store.Store
+	Env            Environment
+	Log            *verbose.Logger
+	Store          *store.Store
+	BlockBlacklist bool
 }
 
 func (s *ServerConfig) IsTesting() bool {

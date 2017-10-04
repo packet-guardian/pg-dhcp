@@ -12,6 +12,7 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	d4 "github.com/packet-guardian/pg-dhcp/dhcp"
+	"github.com/packet-guardian/pg-dhcp/store"
 )
 
 type fatalLogger interface {
@@ -20,7 +21,7 @@ type fatalLogger interface {
 }
 
 func setUpTest1(t fatalLogger) *Handler {
-	db, err := setUpLeaseStore()
+	db, err := setUpStore()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +42,16 @@ func setUpTest1(t fatalLogger) *Handler {
 }
 
 func tearDownTest1(h *Handler) {
-	tearDownLeaseStore(h.c.Store)
+	tearDownStore(h.c.Store)
+}
+
+func setDevice(s *store.Store, m net.HardwareAddr, r, b bool) {
+	s.PutDevice(&store.Device{
+		MAC:         m,
+		Registered:  r,
+		Blacklisted: b,
+	})
+	s.Flush()
 }
 
 func TestDiscover(t *testing.T) {
@@ -50,6 +60,8 @@ func TestDiscover(t *testing.T) {
 	mac, _ := net.ParseMAC("12:34:56:12:34:56")
 
 	// Round 1 - Test Registered Device
+	setDevice(server.c.Store, mac, true, false)
+
 	// Create test request packet
 	opts := []d4.Option{
 		d4.Option{
@@ -115,6 +127,8 @@ func TestDiscover(t *testing.T) {
 	}, t)
 
 	// ROUND 2 - Fight! Test Unregistered Device
+	setDevice(server.c.Store, mac, false, false)
+
 	opts = []d4.Option{
 		d4.Option{
 			Code:  d4.OptionParameterRequestList,

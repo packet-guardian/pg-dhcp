@@ -106,9 +106,10 @@ func main() {
 	}
 
 	serverConfig := &server.ServerConfig{
-		Log:   e.Log,
-		Store: store,
-		Env:   server.EnvProd,
+		Log:            e.Log,
+		Store:          store,
+		Env:            server.EnvProd,
+		BlockBlacklist: e.Config.Server.BlockBlacklisted,
 	}
 
 	handler := server.NewDHCPServer(networks, serverConfig)

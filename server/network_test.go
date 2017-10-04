@@ -20,11 +20,11 @@ import (
 // This test uses network3 in the test config and uses IP range 10.0.8.0/24
 // with only an unregistered block.
 func TestGiveLeaseFromMultiplePools(t *testing.T) {
-	db, err := setUpLeaseStore()
+	db, err := setUpStore()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tearDownLeaseStore(db)
+	defer tearDownStore(db)
 
 	sc := &ServerConfig{
 		Env:   EnvTesting,

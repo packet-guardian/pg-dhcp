@@ -129,6 +129,10 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 		}).Debug()
 	}
 
+	if h.c.Store.GetDevice(p.CHAddr()).Blacklisted && h.c.BlockBlacklist {
+		return nil
+	}
+
 	var response dhcp4.Packet
 	switch msgType {
 	case dhcp4.Discover:
@@ -145,11 +149,15 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 	return response
 }
 
+func isDeviceRegistered(d *store.Device) bool {
+	return d.Registered && !d.Blacklisted
+}
+
 // Handle DHCP DISCOVER messages
 func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
 	start := time.Now()
 
-	registered := false // TODO: Replace with real registration function
+	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
 
 	gatewayIP := p.GIAddr().String()
 	// Get network object that the relay IP belongs to
@@ -231,7 +239,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
-	registered := false // TODO: Replace with real registration function
+	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
 
 	var network *network
 	// Get network object that the relay or client IP belongs to
@@ -325,7 +333,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	registered := false // TODO: Replace with real registration function
+	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
 
 	network := c.searchNetworksFor(reqIP)
 	if network == nil {
@@ -384,7 +392,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	registered := false // TODO: Replace with real registration function
+	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
 
 	network := c.searchNetworksFor(reqIP)
 	if network == nil {
@@ -450,7 +458,7 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 		return nil
 	}
 
-	registered := false // TODO: Replace with real registration function
+	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
 
 	leaseOptions := pool.getOptions(registered)
 

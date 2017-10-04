@@ -22,7 +22,8 @@ type Config struct {
 		DatabaseFile string
 	}
 	Server struct {
-		NetworksFile string
+		BlockBlacklisted bool
+		NetworksFile     string
 	}
 }
 

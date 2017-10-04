@@ -13,11 +13,11 @@ import (
 )
 
 func TestIPGiveOut(t *testing.T) {
-	db, err := setUpLeaseStore()
+	db, err := setUpStore()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tearDownLeaseStore(db)
+	defer tearDownStore(db)
 
 	sc := &ServerConfig{
 		Env:   EnvTesting,
@@ -54,11 +54,11 @@ func BenchmarkLeaseGiveOutLastLeaseNet22(b *testing.B) {
 }
 
 func benchmarkPool(name string, b *testing.B) {
-	db, err := setUpLeaseStore()
+	db, err := setUpStore()
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer tearDownLeaseStore(db)
+	defer tearDownStore(db)
 
 	sc := &ServerConfig{
 		Env:   EnvTesting,
