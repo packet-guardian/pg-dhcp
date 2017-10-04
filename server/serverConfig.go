@@ -5,8 +5,6 @@
 package server
 
 import (
-	"net"
-
 	"github.com/lfkeitel/verbose"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
@@ -20,10 +18,9 @@ const (
 )
 
 type ServerConfig struct {
-	Env        Environment
-	Log        *verbose.Logger
-	Store      *store.Store
-	Identifier net.IP
+	Env   Environment
+	Log   *verbose.Logger
+	Store *store.Store
 }
 
 func (s *ServerConfig) IsTesting() bool {

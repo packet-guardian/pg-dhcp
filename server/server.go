@@ -16,21 +16,23 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	"github.com/packet-guardian/pg-dhcp/dhcp"
-	"github.com/packet-guardian/pg-dhcp/internal/sys"
+	"github.com/packet-guardian/pg-dhcp/store"
 )
 
-var c *sys.Config
+var (
+	c *Config
+)
 
 // A Handler processes all incoming DHCP packets.
 type Handler struct {
-	gatewayCache map[string]*sys.Network
+	gatewayCache map[string]*network
 	gatewayMutex sync.Mutex
 	c            *ServerConfig
 	conn         net.PacketConn
 }
 
 // NewDHCPServer creates and sets up a new DHCP Handler with the give configuration.
-func NewDHCPServer(conf *sys.Config, s *ServerConfig) *Handler {
+func NewDHCPServer(conf *Config, s *ServerConfig) *Handler {
 	if s.Log == nil {
 		s.Log = createLogger()
 	}
@@ -38,7 +40,7 @@ func NewDHCPServer(conf *sys.Config, s *ServerConfig) *Handler {
 
 	return &Handler{
 		c:            s,
-		gatewayCache: make(map[string]*sys.Network),
+		gatewayCache: make(map[string]*network),
 		gatewayMutex: sync.Mutex{},
 	}
 }
@@ -73,6 +75,36 @@ func (h *Handler) Close() error {
 	return nil
 }
 
+// LoadLeases will import any current leases saved to the database.
+func (h *Handler) LoadLeases() error {
+	h.c.Store.ForEachLease(func(l *store.Lease) {
+		// Check if the network exists
+		n, ok := c.networks[l.Network]
+		if !ok {
+			return
+		}
+
+		// Find the correct pool
+		// TODO: Optimize this maybe with a temporary cache
+	subnetLoop:
+		for _, subnet := range n.subnets {
+			if !subnet.includes(l.IP) {
+				continue
+			}
+
+			for _, pool := range subnet.pools {
+				if !pool.includes(l.IP) {
+					continue
+				}
+				pool.leases[l.IP.String()] = l
+				h.c.Log.WithField("address", l.IP).Debug("Loaded lease")
+				break subnetLoop
+			}
+		}
+	})
+	return nil
+}
+
 // ServeDHCP processes an incoming DHCP packet and returns a response.
 func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) dhcp4.Packet {
 	defer func() {
@@ -88,7 +120,7 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 	}()
 
 	// Log every message
-	if server, ok := options[dhcp4.OptionServerIdentifier]; !ok || net.IP(server).Equal(c.Global.ServerIdentifier) {
+	if server, ok := options[dhcp4.OptionServerIdentifier]; !ok || net.IP(server).Equal(c.global.serverIdentifier) {
 		h.c.Log.WithFields(verbose.Fields{
 			"type":     msgType.String(),
 			"ip":       p.CIAddr().String(),
@@ -125,7 +157,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 	network, ok := h.gatewayCache[gatewayIP]
 	if !ok {
 		// That gateway hasn't been seen before, find its network
-		network = c.SearchNetworksFor(p.GIAddr())
+		network = c.searchNetworksFor(p.GIAddr())
 		if network == nil {
 			h.gatewayMutex.Unlock()
 			h.c.Log.WithField("relay_ip", gatewayIP).Notice("Network not found")
@@ -137,16 +169,16 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 	h.gatewayMutex.Unlock()
 
 	// Find an appropiate lease
-	lease, pool := network.GetLeaseByMAC(p.CHAddr(), registered)
+	lease, pool := network.getLeaseByMAC(p.CHAddr(), registered)
 	if lease == nil {
 		// Device doesn't have a recent lease, get a new one
-		lease, pool = network.GetFreeLease(registered)
+		lease, pool = network.getFreeLease(h.c, registered)
 		if lease == nil { // No free lease was found, be more aggressive
-			lease, pool = network.GetFreeLeaseDesperate(registered)
+			lease, pool = network.getFreeLeaseDesperate(h.c, registered)
 		}
 		if lease == nil { // Still no lease was found, error and go to the next request
 			h.c.Log.WithFields(verbose.Fields{
-				"network":    network.GetName(),
+				"network":    network.name,
 				"registered": registered,
 			}).Alert("No free leases available in network")
 			return nil
@@ -155,19 +187,19 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 
 	// Set temporary offered flag and end time
 	lease.Offered = true
-	lease.End = time.Now().Add(time.Duration(30) * time.Second) // Set a short end time so it's not offered to other clients
 	lease.Start = time.Now()
+	lease.End = time.Now().Add(time.Duration(30) * time.Second) // Set a short end time so it's not offered to other clients
 	lease.MAC = make([]byte, len(p.CHAddr()))
 	copy(lease.MAC, p.CHAddr())
 	// No Save because this is a temporary "lease", if the client accepts then we commit to storage
 	// Get options
-	leaseOptions := pool.GetOptions(registered)
+	leaseOptions := pool.getOptions(registered)
 
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":         lease.IP.String(),
 		"mac":        p.CHAddr().String(),
 		"registered": registered,
-		"network":    network.GetName(),
+		"network":    network.name,
 		"action":     "offer",
 		"took":       time.Since(start).String(),
 	}).Info("Offering lease to client")
@@ -176,16 +208,16 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 	return dhcp4.ReplyPacket(
 		p,
 		dhcp4.Offer,
-		c.Global.ServerIdentifier,
+		c.global.serverIdentifier,
 		lease.IP,
-		pool.GetLeaseTime(0, registered),
+		pool.getLeaseTime(0, registered),
 		leaseOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList]),
 	)
 }
 
 // Handle DHCP REQUEST messages
 func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
-	if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(c.Global.ServerIdentifier) {
+	if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(c.global.serverIdentifier) {
 		return nil // Message not for this dhcp server
 	}
 
@@ -196,16 +228,16 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 	}
 
 	if len(reqIP) != 4 || reqIP.Equal(net.IPv4zero) {
-		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.Global.ServerIdentifier, nil, 0, nil)
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
 	registered := false // TODO: Replace with real registration function
 
-	var network *sys.Network
+	var network *network
 	// Get network object that the relay or client IP belongs to
 	if p.GIAddr().Equal(net.IPv4zero) {
 		// Coming directly from the client
-		network = c.SearchNetworksFor(reqIP)
+		network = c.searchNetworksFor(reqIP)
 	} else {
 		// Coming from a relay
 		h.gatewayMutex.Lock()
@@ -214,7 +246,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		h.gatewayMutex.Unlock()
 		if !ok {
 			// That gateway hasn't been seen before, it needs to go through DISCOVER
-			return dhcp4.ReplyPacket(p, dhcp4.NAK, c.Global.ServerIdentifier, nil, 0, nil)
+			return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 		}
 	}
 
@@ -223,18 +255,18 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"ip":         reqIP.String(),
 			"registered": registered,
 		}).Info("Got a REQUEST for IP not in a scope")
-		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.Global.ServerIdentifier, nil, 0, nil)
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
-	lease, pool := network.GetLeaseByIP(reqIP, registered)
+	lease, pool := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || lease.MAC == nil { // If it returns a new lease, the MAC is nil
 		h.c.Log.WithFields(verbose.Fields{
 			"ip":         reqIP.String(),
 			"mac":        p.CHAddr().String(),
-			"network":    network.GetName(),
+			"network":    network.name,
 			"registered": registered,
 		}).Info("Client tried to request a lease that doesn't exist")
-		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.Global.ServerIdentifier, nil, 0, nil)
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
 	if !bytes.Equal(lease.MAC, p.CHAddr()) {
@@ -242,13 +274,13 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"ip":         reqIP.String(),
 			"mac":        p.CHAddr().String(),
 			"lease_mac":  lease.MAC.String(),
-			"network":    network.GetName(),
+			"network":    network.name,
 			"registered": registered,
 		}).Info("Client tried to request lease not belonging to them")
-		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.Global.ServerIdentifier, nil, 0, nil)
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
-	leaseDur := pool.GetLeaseTime(0, registered)
+	leaseDur := pool.getLeaseTime(0, registered)
 	lease.Start = time.Now()
 	lease.End = time.Now().Add(leaseDur + (time.Duration(10) * time.Second)) // Add 10 seconds to account for slight clock drift
 	lease.Offered = false
@@ -260,15 +292,15 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"mac":   p.CHAddr().String(),
 			"error": err,
 		}).Error("Error saving lease")
-		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.Global.ServerIdentifier, nil, 0, nil)
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
-	leaseOptions := pool.GetOptions(registered)
+	leaseOptions := pool.getOptions(registered)
 
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":         lease.IP.String(),
 		"mac":        lease.MAC.String(),
 		"duration":   leaseDur.String(),
-		"network":    network.GetName(),
+		"network":    network.name,
 		"registered": registered,
 		"hostname":   lease.Hostname,
 		"action":     "request_ack",
@@ -278,7 +310,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 	return dhcp4.ReplyPacket(
 		p,
 		dhcp4.ACK,
-		c.Global.ServerIdentifier,
+		c.global.serverIdentifier,
 		lease.IP,
 		leaseDur,
 		leaseOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList]),
@@ -295,7 +327,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 
 	registered := false // TODO: Replace with real registration function
 
-	network := c.SearchNetworksFor(reqIP)
+	network := c.searchNetworksFor(reqIP)
 	if network == nil {
 		h.c.Log.WithFields(verbose.Fields{
 			"ip":         reqIP.String(),
@@ -304,7 +336,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	lease, _ := network.GetLeaseByIP(reqIP, registered)
+	lease, _ := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
 		leaseMac := ""
 		if lease != nil {
@@ -315,7 +347,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"ip":         reqIP.String(),
 			"mac":        p.CHAddr().String(),
 			"lease_mac":  leaseMac,
-			"network":    network.GetName(),
+			"network":    network.name,
 			"registered": registered,
 		}).Notice("Client tried to release lease not belonging to them")
 		return nil
@@ -324,7 +356,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":         lease.IP.String(),
 		"mac":        lease.MAC.String(),
-		"network":    network.GetName(),
+		"network":    network.name,
 		"registered": registered,
 		"action":     "release",
 		"took":       time.Since(start).String(),
@@ -354,7 +386,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 
 	registered := false // TODO: Replace with real registration function
 
-	network := c.SearchNetworksFor(reqIP)
+	network := c.searchNetworksFor(reqIP)
 	if network == nil {
 		h.c.Log.WithFields(verbose.Fields{
 			"ip":         reqIP.String(),
@@ -363,7 +395,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return nil
 	}
 
-	lease, _ := network.GetLeaseByIP(reqIP, registered)
+	lease, _ := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
 		leaseMac := ""
 		if lease != nil {
@@ -374,7 +406,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 			"declined_ip": reqIP.String(),
 			"mac":         p.CHAddr().String(),
 			"lease_mac":   leaseMac,
-			"network":     network.GetName(),
+			"network":     network.name,
 			"registered":  registered,
 		}).Notice("Client tried to decline lease not belonging to them")
 		return nil
@@ -383,7 +415,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":         lease.IP.String(),
 		"mac":        lease.MAC.String(),
-		"network":    network.GetName(),
+		"network":    network.name,
 		"registered": registered,
 		"action":     "decline",
 		"took":       time.Since(start).String(),
@@ -408,19 +440,19 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 		return nil
 	}
 
-	network := c.SearchNetworksFor(ip)
+	network := c.searchNetworksFor(ip)
 	if network == nil {
 		return nil
 	}
 
-	pool := network.GetPoolOfIP(ip)
+	pool := network.getPoolOfIP(ip)
 	if pool == nil {
 		return nil
 	}
 
 	registered := false // TODO: Replace with real registration function
 
-	leaseOptions := pool.GetOptions(registered)
+	leaseOptions := pool.getOptions(registered)
 
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":     ip.String(),
@@ -432,7 +464,7 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 	return dhcp4.ReplyPacket(
 		p,
 		dhcp4.ACK,
-		c.Global.ServerIdentifier,
+		c.global.serverIdentifier,
 		net.IP([]byte{0, 0, 0, 0}),
 		0,
 		leaseOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList]),

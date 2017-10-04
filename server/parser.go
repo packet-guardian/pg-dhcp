@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sys
+package server
 
 import (
 	"bufio"
@@ -74,8 +74,8 @@ mainLoop:
 		}
 	}
 
-	for _, n := range p.c.Networks {
-		n.global = p.c.Global
+	for _, n := range p.c.networks {
+		n.global = p.c.global
 	}
 	return p.c, nil
 }
@@ -94,25 +94,25 @@ mainLoop:
 			if addr.token != IP_ADDRESS {
 				return fmt.Errorf("Expected IP address on line %d", addr.line)
 			}
-			p.c.Global.ServerIdentifier = addr.value.(net.IP)
+			p.c.global.serverIdentifier = addr.value.(net.IP)
 		case REGISTERED:
 			s, err := p.parseSettingsBlock()
 			if err != nil {
 				return err
 			}
-			p.c.Global.registeredSettings = s
+			p.c.global.registeredSettings = s
 			p.l.next() // Consume END from block
 		case UNREGISTERED:
 			s, err := p.parseSettingsBlock()
 			if err != nil {
 				return err
 			}
-			p.c.Global.unregisteredSettings = s
+			p.c.global.unregisteredSettings = s
 			p.l.next() // Consume END from block
 		default:
 			if tok.token.isSetting() {
 				p.l.unread()
-				err := p.parseSetting(p.c.Global.settings)
+				err := p.parseSetting(p.c.global.settings)
 				if err != nil {
 					return err
 				}
@@ -134,7 +134,7 @@ func (p *parser) parseNetwork() error {
 		return fmt.Errorf("Network name is too long on line %d", nameToken.line)
 	}
 
-	if _, exists := p.c.Networks[name]; exists {
+	if _, exists := p.c.networks[name]; exists {
 		return fmt.Errorf("Network %s already declared, line %d", name, nameToken.line)
 	}
 	netBlock := newNetwork(name)
@@ -201,7 +201,7 @@ mainLoop:
 			return fmt.Errorf("Unexpected token %s on line %d in network", tok.string(), tok.line)
 		}
 	}
-	p.c.Networks[name] = netBlock
+	p.c.networks[name] = netBlock
 	return nil
 }
 
@@ -263,7 +263,7 @@ mainLoop:
 	return sub, nil
 }
 
-func (p *parser) parsePool() (*Pool, error) {
+func (p *parser) parsePool() (*pool, error) {
 	nPool := newPool()
 
 mainLoop:

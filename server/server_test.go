@@ -12,7 +12,6 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	d4 "github.com/packet-guardian/pg-dhcp/dhcp"
-	"github.com/packet-guardian/pg-dhcp/internal/sys"
 )
 
 type fatalLogger interface {
@@ -27,7 +26,7 @@ func setUpTest1(t fatalLogger) *Handler {
 	}
 
 	// Setup Configuration
-	c, err := sys.ParseFile("../testdata/testConfig.conf")
+	c, err := ParseFile("./testdata/testConfig.conf")
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
 	}
@@ -196,4 +195,37 @@ func checkOptions(p d4.Packet, ops d4.Options, t *testing.T) d4.Options {
 		}
 	}
 	return options
+}
+
+func BenchmarkDHCPDiscover(b *testing.B) {
+	server := setUpTest1(b)
+	defer tearDownTest1(server)
+
+	mac, _ := net.ParseMAC("12:34:56:12:34:56")
+
+	pool := c.networks["network1"].subnets[1].pools[0] // Registered pool
+
+	// Create test request packet
+	opts := []d4.Option{
+		d4.Option{
+			Code:  d4.OptionParameterRequestList,
+			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
+		},
+	}
+	p := d4.RequestPacket(d4.Discover, mac, nil, nil, false, opts)
+	p.SetGIAddr(net.ParseIP("10.0.1.5"))
+	unixZero := time.Unix(0, 0)
+
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		dp := server.ServeDHCP(p, d4.Discover, p.ParseOptions())
+		b.StopTimer()
+
+		if dp == nil {
+			b.Fatal("ServeDHCP returned nil")
+		}
+		pool.leases["10.0.2.10"].End = unixZero
+	}
 }

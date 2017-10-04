@@ -2,28 +2,26 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sys
+package server
 
-import (
-	"net"
-)
+import "net"
 
 // A Config is the parsed object generated from a PG-DHCP configuration file.
 type Config struct {
-	Global   *Global
-	Networks map[string]*Network
+	global   *global
+	networks map[string]*network
 }
 
 func newConfig() *Config {
 	return &Config{
-		Global:   newGlobal(),
-		Networks: make(map[string]*Network),
+		global:   newGlobal(),
+		networks: make(map[string]*network),
 	}
 }
 
-func (c *Config) SearchNetworksFor(ip net.IP) *Network {
-	for _, network := range c.Networks {
-		if network.Includes(ip) {
+func (c *Config) searchNetworksFor(ip net.IP) *network {
+	for _, network := range c.networks {
+		if network.includes(ip) {
 			return network
 		}
 	}

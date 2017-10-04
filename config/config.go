@@ -24,11 +24,6 @@ type Config struct {
 	Server struct {
 		NetworksFile string
 	}
-	Management struct {
-		AllowedIPs []string // IPs allowed to connect to the management port and issue RPC requests
-		Address    string
-		Port       int
-	}
 }
 
 func FindConfigFile() string {
@@ -95,12 +90,8 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 	}
 	c.Leases.DatabaseFile = setStringOrDefault(c.Leases.DatabaseFile, "leases.db")
 
-	// Server
+	// DHCP
 	c.Server.NetworksFile = setStringOrDefault(c.Server.NetworksFile, "/etc/pg-dhcp/dhcp.conf")
-
-	// Management
-	c.Management.Address = setStringOrDefault(c.Management.Address, "0.0.0.0")
-	c.Management.Port = setIntOrDefault(c.Management.Port, 8677)
 
 	return c, nil
 }
@@ -108,14 +99,6 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 // Given string s, if it is empty, return v else return s.
 func setStringOrDefault(s, v string) string {
 	if s == "" {
-		return v
-	}
-	return s
-}
-
-// Given int s, if it is 0, return v else return s.
-func setIntOrDefault(s, v int) int {
-	if s == 0 {
 		return v
 	}
 	return s

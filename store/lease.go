@@ -7,6 +7,7 @@ package store
 import (
 	"errors"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/utils"
@@ -17,6 +18,7 @@ var errBufTooSmall = errors.New("buffer too small")
 // A Lease represents a single DHCP lease in a pool. It is bound to a particular
 // pool and network.
 type Lease struct {
+	sync.RWMutex
 	IP          net.IP
 	MAC         net.HardwareAddr
 	Network     string
@@ -43,6 +45,7 @@ func (l *Lease) IsExpired() bool {
 }
 
 func (l *Lease) serialize() []byte {
+	l.RLock()
 	netBytes := []byte(l.Network)
 	hostnameBytes := []byte(l.Hostname)
 	buf := make([]byte, 29+len(netBytes)+len(hostnameBytes))
@@ -74,6 +77,7 @@ func (l *Lease) serialize() []byte {
 
 	// Hostname. Hostname as no length as it's everything after the network name
 	copy(buf[netEnd:], hostnameBytes)
+	l.RUnlock()
 	return buf
 }
 
@@ -82,6 +86,7 @@ func (l *Lease) unserialize(data []byte) error {
 		return errBufTooSmall
 	}
 
+	l.Lock()
 	// IP Address
 	l.IP = net.IP(make([]byte, 4))
 	copy(l.IP, data[:4])
@@ -102,6 +107,7 @@ func (l *Lease) unserialize(data []byte) error {
 	// Network name
 	netlen := int(data[28])
 	if len(data) < 29+netlen {
+		l.Unlock()
 		return errBufTooSmall
 	}
 	if netlen > 0 {
@@ -113,5 +119,6 @@ func (l *Lease) unserialize(data []byte) error {
 		hostnameStart := netlen + 29
 		l.Hostname = string(data[hostnameStart:])
 	}
+	l.Unlock()
 	return nil
 }

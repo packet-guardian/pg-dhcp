@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sys
+package server
 
 import (
 	"bytes"
@@ -13,8 +13,8 @@ import (
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
-type Network struct {
-	global               *Global
+type network struct {
+	global               *global
 	name                 string
 	settings             *settings
 	registeredSettings   *settings
@@ -24,8 +24,8 @@ type Network struct {
 	subnets              []*subnet
 }
 
-func newNetwork(name string) *Network {
-	return &Network{
+func newNetwork(name string) *network {
+	return &network{
 		name:                 strings.ToLower(name),
 		settings:             newSettingsBlock(),
 		registeredSettings:   newSettingsBlock(),
@@ -33,22 +33,18 @@ func newNetwork(name string) *Network {
 	}
 }
 
-func (n *Network) GetName() string {
-	return n.name
-}
-
 // GetLeaseTime returns the lease time given the requested time req and if the client is registered.
 // If req is 0 then the default lease time is returned. Otherwise it will return the lower of
 // req and the maximum lease time. If the network does not have an explicitly set duration for either,
 // it will get the duration from Global.
-func (n *Network) getLeaseTime(req time.Duration, registered bool) time.Duration {
+func (n *network) getLeaseTime(req time.Duration, registered bool) time.Duration {
 	if req == 0 {
 		return n.getDefaultLeaseTime(registered)
 	}
 	return n.getMaxLeaseTime(req, registered)
 }
 
-func (n *Network) getDefaultLeaseTime(registered bool) time.Duration {
+func (n *network) getDefaultLeaseTime(registered bool) time.Duration {
 	if registered {
 		if n.registeredSettings.defaultLeaseTime > 0 {
 			return n.registeredSettings.defaultLeaseTime
@@ -72,7 +68,7 @@ func (n *Network) getDefaultLeaseTime(registered bool) time.Duration {
 	return n.unregisteredSettings.defaultLeaseTime
 }
 
-func (n *Network) getMaxLeaseTime(req time.Duration, registered bool) time.Duration {
+func (n *network) getMaxLeaseTime(req time.Duration, registered bool) time.Duration {
 	// Registered devices
 	if registered {
 		if n.registeredSettings.maxLeaseTime > 0 {
@@ -106,7 +102,7 @@ func (n *Network) getMaxLeaseTime(req time.Duration, registered bool) time.Durat
 	return n.global.getLeaseTime(req, registered)
 }
 
-func (n *Network) getSettings(registered bool) *settings {
+func (n *network) getSettings(registered bool) *settings {
 	if registered && n.regOptionsCached {
 		return n.registeredSettings
 	} else if !registered && n.unregOptionsCached {
@@ -125,7 +121,7 @@ func (n *Network) getSettings(registered bool) *settings {
 	return n.unregisteredSettings
 }
 
-func (n *Network) Includes(ip net.IP) bool {
+func (n *network) includes(ip net.IP) bool {
 	for _, s := range n.subnets {
 		if s.includes(ip) {
 			return true
@@ -134,7 +130,7 @@ func (n *Network) Includes(ip net.IP) bool {
 	return false
 }
 
-func (n *Network) GetPoolOfIP(ip net.IP) *Pool {
+func (n *network) getPoolOfIP(ip net.IP) *pool {
 	for _, s := range n.subnets {
 		for _, p := range s.pools {
 			if p.includes(ip) {
@@ -145,13 +141,13 @@ func (n *Network) GetPoolOfIP(ip net.IP) *Pool {
 	return nil
 }
 
-func (n *Network) GetFreeLease(registered bool) (*store.Lease, *Pool) {
+func (n *network) getFreeLease(e *ServerConfig, registered bool) (*store.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
 		}
 		for _, p := range s.pools {
-			if l := p.getFreeLease(); l != nil {
+			if l := p.getFreeLease(e); l != nil {
 				return l, p
 			}
 		}
@@ -159,13 +155,13 @@ func (n *Network) GetFreeLease(registered bool) (*store.Lease, *Pool) {
 	return nil, nil
 }
 
-func (n *Network) GetFreeLeaseDesperate(registered bool) (*store.Lease, *Pool) {
+func (n *network) getFreeLeaseDesperate(e *ServerConfig, registered bool) (*store.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
 		}
 		for _, p := range s.pools {
-			if l := p.getFreeLeaseDesperate(); l != nil {
+			if l := p.getFreeLeaseDesperate(e); l != nil {
 				return l, p
 			}
 		}
@@ -173,37 +169,37 @@ func (n *Network) GetFreeLeaseDesperate(registered bool) (*store.Lease, *Pool) {
 	return nil, nil
 }
 
-func (n *Network) GetLeaseByMAC(mac net.HardwareAddr, registered bool) (*store.Lease, *Pool) {
+func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*store.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
 		}
 		for _, p := range s.pools {
-			p.m.RLock()
+			p.RLock()
 			for _, l := range p.leases {
 				if bytes.Equal(l.MAC, mac) {
-					p.m.RUnlock()
+					p.RUnlock()
 					return l, p
 				}
 			}
-			p.m.RUnlock()
+			p.RUnlock()
 		}
 	}
 	return nil, nil
 }
 
-func (n *Network) GetLeaseByIP(ip net.IP, registered bool) (*store.Lease, *Pool) {
+func (n *network) getLeaseByIP(ip net.IP, registered bool) (*store.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
 		}
 		for _, p := range s.pools {
-			p.m.RLock()
+			p.RLock()
 			if l, ok := p.leases[ip.String()]; ok {
-				p.m.RUnlock()
+				p.RUnlock()
 				return l, p
 			}
-			p.m.RUnlock()
+			p.RUnlock()
 		}
 	}
 	return nil, nil

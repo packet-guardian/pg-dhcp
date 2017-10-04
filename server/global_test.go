@@ -1,4 +1,4 @@
-package sys
+package server
 
 import (
 	"testing"
