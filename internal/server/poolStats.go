@@ -4,18 +4,33 @@
 
 package server
 
-import "time"
+import (
+	"time"
 
-type PoolStat struct {
-	NetworkName, Subnet                     string
-	Start                                   string
-	End                                     string
-	Registered                              bool
-	Total, Active, Claimed, Abandoned, Free int
+	"github.com/packet-guardian/pg-dhcp/stats"
+	"github.com/packet-guardian/pg-dhcp/store"
+)
+
+func GetNetworkList() []string {
+	n := make([]string, len(c.networks))
+	i := 0
+	for name := range c.networks {
+		n[i] = name
+		i++
+	}
+	return n
 }
 
-func (h *Handler) GetPoolStats() []*PoolStat {
-	stats := make([]*PoolStat, 0)
+func GetLeasesInNetwork(name string) []*store.Lease {
+	net, ok := c.networks[name]
+	if !ok {
+		return nil
+	}
+	return net.getAllLeases()
+}
+
+func GetPoolStats() []*stats.PoolStat {
+	poolStats := make([]*stats.PoolStat, 0)
 	now := time.Now()
 	regFreeTime := time.Duration(c.global.registeredSettings.freeLeaseAfter) * time.Second
 	unRegFreeTime := time.Duration(c.global.unregisteredSettings.freeLeaseAfter) * time.Second
@@ -23,7 +38,7 @@ func (h *Handler) GetPoolStats() []*PoolStat {
 	for _, n := range c.networks {
 		for _, s := range n.subnets {
 			for _, p := range s.pools {
-				ps := &PoolStat{
+				ps := &stats.PoolStat{
 					NetworkName: n.name,
 					Subnet:      s.net.String(),
 					Registered:  !s.allowUnknown,
@@ -55,9 +70,9 @@ func (h *Handler) GetPoolStats() []*PoolStat {
 					}
 				}
 
-				stats = append(stats, ps)
+				poolStats = append(poolStats, ps)
 			}
 		}
 	}
-	return stats
+	return poolStats
 }

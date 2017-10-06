@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/packet-guardian/pg-dhcp/utils"
+	"github.com/packet-guardian/pg-dhcp/internal/utils"
 )
 
 var errBufTooSmall = errors.New("buffer too small")

@@ -17,11 +17,14 @@ var (
 )
 
 type Store struct {
-	m           sync.Mutex
-	db          *bolt.DB
-	leaseQueue  *list.List
-	deviceQueue *list.List
-	done        chan struct{}
+	m          sync.Mutex
+	db         *bolt.DB
+	leaseQueue *list.List
+	done       chan struct{}
+}
+
+type queueItem struct {
+	key, val []byte
 }
 
 func NewStore(path string) (*Store, error) {
@@ -40,10 +43,9 @@ func NewStore(path string) (*Store, error) {
 	})
 
 	s := &Store{
-		db:          db,
-		leaseQueue:  list.New(),
-		deviceQueue: list.New(),
-		done:        make(chan struct{}),
+		db:         db,
+		leaseQueue: list.New(),
+		done:       make(chan struct{}),
 	}
 	go s.startFlushTimer()
 
@@ -87,26 +89,6 @@ func (s *Store) Flush() {
 			return nil
 		})
 	}
-
-	deviceQueueLen := s.deviceQueue.Len()
-	if deviceQueueLen > 0 {
-		deviceBatch := make([]queueItem, deviceQueueLen)
-		for i := 0; i < deviceQueueLen; i++ {
-			elem := s.deviceQueue.Front()
-			deviceBatch[i] = elem.Value.(queueItem)
-			s.deviceQueue.Remove(elem)
-		}
-
-		s.db.Batch(func(tx *bolt.Tx) error {
-			bucket := tx.Bucket(deviceBucket)
-			for _, item := range deviceBatch {
-				if err := bucket.Put(item.key, item.val); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-	}
 	s.m.Unlock()
 }
 
@@ -124,11 +106,37 @@ func (s *Store) GetLease(ip net.IP) (*Lease, error) {
 		return nil
 	})
 
+	if data == nil {
+		return nil, nil
+	}
+
 	lease := NewLease()
 	if err := lease.unserialize(data); err != nil {
 		return nil, err
 	}
 	return lease, nil
+}
+
+func (s *Store) PutLease(l *Lease) error {
+	data := l.serialize()
+	s.m.Lock()
+	s.leaseQueue.PushBack(queueItem{[]byte(l.IP.To4()), data})
+	s.m.Unlock()
+	return nil
+}
+
+func (s *Store) ForEachLease(foreach func(*Lease)) {
+	s.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(leaseBucket)
+		bucket.ForEach(func(k []byte, v []byte) error {
+			lease := NewLease()
+			if err := lease.unserialize(v); err == nil {
+				foreach(lease)
+			}
+			return nil
+		})
+		return nil
+	})
 }
 
 func (s *Store) GetDevice(mac net.HardwareAddr) *Device {
@@ -150,40 +158,16 @@ func (s *Store) GetDevice(mac net.HardwareAddr) *Device {
 	return device
 }
 
-type queueItem struct {
-	key, val []byte
-}
-
-func (s *Store) PutLease(l *Lease) error {
-	data := l.serialize()
-	s.m.Lock()
-	s.leaseQueue.PushBack(queueItem{[]byte(l.IP.To4()), data})
-	s.m.Unlock()
-	return nil
-}
-
 func (s *Store) PutDevice(d *Device) {
 	state := byte(0) | (boolToByte(d.Registered) << 1) | (boolToByte(d.Blacklisted))
-	item := queueItem{
-		key: []byte(d.MAC),
-		val: []byte{state},
-	}
-	s.m.Lock()
-	s.deviceQueue.PushBack(item)
-	s.m.Unlock()
+	s.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(deviceBucket).Put([]byte(d.MAC), []byte{state})
+	})
 }
 
-func (s *Store) ForEachLease(foreach func(*Lease)) {
-	s.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(leaseBucket)
-		bucket.ForEach(func(k []byte, v []byte) error {
-			lease := NewLease()
-			if err := lease.unserialize(v); err == nil {
-				foreach(lease)
-			}
-			return nil
-		})
-		return nil
+func (s *Store) DeleteDevice(d *Device) {
+	s.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(deviceBucket).Delete([]byte(d.MAC))
 	})
 }
 

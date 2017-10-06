@@ -85,7 +85,6 @@ func TestDeviceStore(t *testing.T) {
 		Blacklisted: false,
 	}
 	store.PutDevice(device)
-	store.Flush()
 
 	device2 := store.GetDevice(device.MAC)
 
@@ -132,7 +131,6 @@ func TestForEachDevice(t *testing.T) {
 
 	store.PutDevice(device1)
 	store.PutDevice(device2)
-	store.Flush()
 
 	var newDevice1, newDevice2 *Device
 

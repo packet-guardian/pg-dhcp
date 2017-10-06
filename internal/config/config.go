@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/naoina/toml"
-	"github.com/packet-guardian/pg-dhcp/utils"
+	"github.com/packet-guardian/pg-dhcp/internal/utils"
 )
 
 type Config struct {
@@ -24,6 +24,11 @@ type Config struct {
 	Server struct {
 		BlockBlacklisted bool
 		NetworksFile     string
+	}
+	Management struct {
+		Address    string
+		Port       int
+		AllowedIPs []string
 	}
 }
 
@@ -94,12 +99,24 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 	// DHCP
 	c.Server.NetworksFile = setStringOrDefault(c.Server.NetworksFile, "/etc/pg-dhcp/dhcp.conf")
 
+	// Management
+	c.Management.Address = setStringOrDefault(c.Management.Address, "0.0.0.0")
+	c.Management.Port = setIntOrDefault(c.Management.Port, 8677)
+
 	return c, nil
 }
 
 // Given string s, if it is empty, return v else return s.
 func setStringOrDefault(s, v string) string {
 	if s == "" {
+		return v
+	}
+	return s
+}
+
+// Given int s, if it is zero, return v else return s.
+func setIntOrDefault(s, v int) int {
+	if s == 0 {
 		return v
 	}
 	return s

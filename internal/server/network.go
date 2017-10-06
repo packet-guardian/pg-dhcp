@@ -204,3 +204,15 @@ func (n *network) getLeaseByIP(ip net.IP, registered bool) (*store.Lease, *pool)
 	}
 	return nil, nil
 }
+
+func (n *network) getAllLeases() []*store.Lease {
+	leases := make([]*store.Lease, 0, 20)
+	for _, s := range n.subnets {
+		for _, p := range s.pools {
+			for _, l := range p.leases {
+				leases = append(leases, l)
+			}
+		}
+	}
+	return leases
+}

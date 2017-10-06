@@ -27,7 +27,7 @@ LDFLAGS := -X 'main.version=$(VERSION)' \
 all: test server
 
 server:
-	GOBIN="$(GOBIN)" go install -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/dhcp
+	GOBIN="$(GOBIN)" go install -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' .
 
 # development tasks
 doc:

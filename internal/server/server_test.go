@@ -51,7 +51,6 @@ func setDevice(s *store.Store, m net.HardwareAddr, r, b bool) {
 		Registered:  r,
 		Blacklisted: b,
 	})
-	s.Flush()
 }
 
 func TestDiscover(t *testing.T) {
@@ -191,6 +190,35 @@ func TestDiscover(t *testing.T) {
 		d4.OptionDomainName:         []byte("example.com"),
 		d4.OptionIPAddressLeaseTime: []byte{0x0, 0x0, 0x1, 0x68},
 	}, t)
+}
+
+func TestBlockBlacklisted(t *testing.T) {
+	server := setUpTest1(t)
+	defer tearDownTest1(server)
+	mac, _ := net.ParseMAC("12:34:56:12:34:56")
+
+	// Round 1 - Test Registered Device
+	setDevice(server.c.Store, mac, true, true)
+	server.c.BlockBlacklist = true
+
+	// Create test request packet
+	opts := []d4.Option{
+		d4.Option{
+			Code:  d4.OptionParameterRequestList,
+			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
+		},
+	}
+	p := d4.RequestPacket(d4.Discover, mac, nil, nil, false, opts)
+	p.SetGIAddr(net.ParseIP("10.0.1.5"))
+
+	// Process a DISCOVER request
+	start := time.Now()
+	dp := server.ServeDHCP(p, d4.Discover, p.ParseOptions())
+	t.Logf("Discover took: %v", time.Since(start))
+
+	if dp != nil {
+		t.Fatal("Blacklisted devices received a reply instead of being blocked.")
+	}
 }
 
 func checkIP(p d4.Packet, expected net.IP, t *testing.T) {

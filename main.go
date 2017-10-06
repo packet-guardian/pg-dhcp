@@ -4,14 +4,17 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"runtime/pprof"
 	"time"
 
-	"github.com/packet-guardian/pg-dhcp/config"
-	"github.com/packet-guardian/pg-dhcp/server"
+	"github.com/packet-guardian/pg-dhcp/managment"
+
+	"github.com/packet-guardian/pg-dhcp/internal/config"
+	"github.com/packet-guardian/pg-dhcp/internal/server"
+	"github.com/packet-guardian/pg-dhcp/internal/utils"
 	"github.com/packet-guardian/pg-dhcp/store"
-	"github.com/packet-guardian/pg-dhcp/utils"
 )
 
 var (
@@ -104,6 +107,12 @@ func main() {
 	if err != nil {
 		e.Log.WithField("error", err).Fatal("Error loading lease database")
 	}
+
+	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", e.Config.Management.Address, e.Config.Management.Port))
+	if err != nil {
+		e.Log.WithField("error", err).Fatal("Error starting management interface")
+	}
+	go management.StartRPCServer(l, store)
 
 	serverConfig := &server.ServerConfig{
 		Log:            e.Log,
