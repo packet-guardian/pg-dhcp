@@ -103,16 +103,19 @@ func main() {
 		e.Log.WithField("error", err).Fatal("Error loading DHCP configuration")
 	}
 
+	e.Log.Info("Opening database")
 	store, err := store.NewStore(e.Config.Leases.DatabaseFile)
 	if err != nil {
 		e.Log.WithField("error", err).Fatal("Error loading lease database")
 	}
 
+	e.Log.Info("Starting management server")
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", e.Config.Management.Address, e.Config.Management.Port))
 	if err != nil {
 		e.Log.WithField("error", err).Fatal("Error starting management interface")
 	}
 	go management.StartRPCServer(l, store)
+	e.Log.Infof("Management server listening on %s:%d", e.Config.Management.Address, e.Config.Management.Port)
 
 	serverConfig := &server.ServerConfig{
 		Log:            e.Log,

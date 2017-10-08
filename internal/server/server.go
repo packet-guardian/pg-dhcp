@@ -29,6 +29,7 @@ type Handler struct {
 	gatewayMutex sync.Mutex
 	c            *ServerConfig
 	conn         net.PacketConn
+	closing      bool
 }
 
 // NewDHCPServer creates and sets up a new DHCP Handler with the give configuration.
@@ -64,12 +65,16 @@ func (h *Handler) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	defer l.Close()
 	h.conn = l
-	return dhcp4.Serve(l, h)
+	err = dhcp4.Serve(l, h)
+	if h.closing {
+		return nil
+	}
+	return err
 }
 
 func (h *Handler) Close() error {
+	h.closing = true
 	h.conn.Close()
 	h.c.Store.Close()
 	return nil
