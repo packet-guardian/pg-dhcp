@@ -93,29 +93,22 @@ func (p *pool) getFreeLease(s *ServerConfig) *store.Lease {
 	unRegFreeTime := p.subnet.network.global.unregisteredSettings.freeLeaseAfter
 	// Find a candidate from the already used leases
 	for _, l := range p.leases {
-		l.RLock()
 		if l.IsAbandoned { // IP in use by a device we don't know about
-			l.RUnlock()
 			continue
 		}
 		if l.End.After(now) { // Active lease
-			l.RUnlock()
 			continue
 		}
 		if l.Offered && now.After(l.End) { // Lease was offered but not taken
 			l.Offered = false
-			l.RUnlock()
 			return l
 		}
 		if !l.Registered && l.End.Add(unRegFreeTime).Before(now) { // Unregisted lease expired
-			l.RUnlock()
 			return l
 		}
 		if l.Registered && l.End.Add(regFreeTime).Before(now) { // Registered lease expired
-			l.RUnlock()
 			return l
 		}
-		l.RUnlock()
 	}
 
 	// No candidates, find the next available lease
@@ -153,22 +146,18 @@ func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *store.Lease {
 	// Find the oldest expired lease
 	var longestExpiredLease *store.Lease
 	for _, l := range p.leases {
-		l.RLock()
 		if l.End.After(now) { // Skip active leases
-			l.RUnlock()
 			continue
 		}
 
 		if longestExpiredLease == nil {
 			longestExpiredLease = l
-			l.RUnlock()
 			continue
 		}
 
 		if l.End.Before(longestExpiredLease.End) {
 			longestExpiredLease = l
 		}
-		l.RUnlock()
 	}
 
 	if longestExpiredLease != nil {
@@ -178,13 +167,10 @@ func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *store.Lease {
 	// Now we're getting desperate
 	// Check abandoned leases for availability
 	for _, l := range p.leases {
-		l.RLock()
 		if l.IsAbandoned { // Skip non-abandoned leases
 			l.IsAbandoned = false
-			l.RUnlock()
 			return l
 		}
-		l.RUnlock()
 	}
 	return nil
 }
