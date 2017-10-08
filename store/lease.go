@@ -42,7 +42,7 @@ func (l *Lease) IsExpired() bool {
 	return l.End.Before(time.Now())
 }
 
-func (l *Lease) serialize() []byte {
+func (l *Lease) Serialize() []byte {
 	netBytes := []byte(l.Network)
 	hostnameBytes := []byte(l.Hostname)
 	buf := make([]byte, 29+len(netBytes)+len(hostnameBytes))
@@ -77,7 +77,7 @@ func (l *Lease) serialize() []byte {
 	return buf
 }
 
-func (l *Lease) unserialize(data []byte) error {
+func (l *Lease) Unserialize(data []byte) error {
 	if len(data) < 29 {
 		return errBufTooSmall
 	}

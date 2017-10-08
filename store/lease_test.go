@@ -55,7 +55,7 @@ var leaseTests = []struct {
 
 func TestLeaseSerialize(t *testing.T) {
 	for _, test := range leaseTests {
-		data := test.actual.serialize()
+		data := test.actual.Serialize()
 		if !bytes.Equal(data, test.data) {
 			t.Errorf("Serialize failed. Expected %#v, got %#v", test.data, data)
 		}
@@ -65,7 +65,7 @@ func TestLeaseSerialize(t *testing.T) {
 func TestLeaseUnserialize(t *testing.T) {
 	for _, test := range leaseTests {
 		lease := NewLease()
-		if err := lease.unserialize(test.data); err != nil {
+		if err := lease.Unserialize(test.data); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 			continue
 		}

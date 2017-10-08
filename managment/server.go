@@ -7,6 +7,7 @@ import (
 
 type Server int
 
-func (s *Server) GetPoolStats() []*stats.PoolStat {
-	return server.GetPoolStats()
+func (s *Server) GetPoolStats(_ int, reply *[]*stats.PoolStat) error {
+	*reply = server.GetPoolStats()
+	return nil
 }

@@ -31,18 +31,26 @@ func TestLeaseGetLeaseRPC(t *testing.T) {
 
 	rpc := &Lease{store: db}
 
-	lease := rpc.Get(ip2)
-	if lease.MAC.String() != mac2.String() {
-		t.Fatalf("Wrong lease returned. Expected %s, got %s", mac2.String(), lease.MAC.String())
+	lease := new(store.Lease)
+	if err := rpc.Get(ip2, lease); err != nil {
+		t.Fatal(err)
+	}
+	if (lease).MAC.String() != mac2.String() {
+		t.Fatalf("Wrong lease returned. Expected %s, got %s", mac2.String(), (lease).MAC.String())
 	}
 
-	lease = rpc.Get(ip1)
-	if lease.MAC.String() != mac1.String() {
-		t.Fatalf("Wrong lease returned. Expected %s, got %s", mac1.String(), lease.MAC.String())
+	if err := rpc.Get(ip1, lease); err != nil {
+		t.Fatal(err)
+	}
+	if (lease).MAC.String() != mac1.String() {
+		t.Fatalf("Wrong lease returned. Expected %s, got %s", mac1.String(), (lease).MAC.String())
 	}
 
-	lease = rpc.Get(ip3)
-	if lease != nil {
+	lease = new(store.Lease)
+	if err := rpc.Get(ip3, lease); err != nil {
+		t.Fatal(err)
+	}
+	if lease.IP != nil {
 		t.Fatalf("Non existant lease returned. Got %s", lease.IP.String())
 	}
 }
@@ -85,7 +93,10 @@ func TestLeaseGetAllFromNetworkRPC(t *testing.T) {
 
 	rpc := &Lease{store: db}
 
-	leases := rpc.GetAllFromNetwork("network1")
+	var leases []*store.Lease
+	if err := rpc.GetAllFromNetwork("network1", &leases); err != nil {
+		t.Fatal(err)
+	}
 	if len(leases) != 3 {
 		t.Fatalf("Incorrect number of leases. Expected 3, got %d", len(leases))
 	}

@@ -6,8 +6,11 @@ func TestNetworkListRPC(t *testing.T) {
 	_, s := setUpTest(t)
 	defer tearDownStore(s)
 
+	var list []string
 	n := new(Network)
-	list := n.GetNameList()
+	if err := n.GetNameList(0, &list); err != nil {
+		t.Fatal(err)
+	}
 
 	expected := []string{"network1", "network2", "network3", "network4"}
 

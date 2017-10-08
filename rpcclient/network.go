@@ -5,8 +5,8 @@ type NetworkRequest struct {
 }
 
 func (n *NetworkRequest) GetNameList() ([]string, error) {
-	reply := make([]string, 0)
-	if err := n.client.c.Call("Network.GetNameList", nil, reply); err != nil {
+	var reply []string
+	if err := n.client.c.Call("Network.GetNameList", 0, &reply); err != nil {
 		return nil, err
 	}
 	return reply, nil

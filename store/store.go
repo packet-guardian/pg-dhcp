@@ -111,14 +111,14 @@ func (s *Store) GetLease(ip net.IP) (*Lease, error) {
 	}
 
 	lease := NewLease()
-	if err := lease.unserialize(data); err != nil {
+	if err := lease.Unserialize(data); err != nil {
 		return nil, err
 	}
 	return lease, nil
 }
 
 func (s *Store) PutLease(l *Lease) error {
-	data := l.serialize()
+	data := l.Serialize()
 	s.m.Lock()
 	s.leaseQueue.PushBack(queueItem{[]byte(l.IP.To4()), data})
 	s.m.Unlock()
@@ -130,7 +130,7 @@ func (s *Store) ForEachLease(foreach func(*Lease)) {
 		bucket := tx.Bucket(leaseBucket)
 		bucket.ForEach(func(k []byte, v []byte) error {
 			lease := NewLease()
-			if err := lease.unserialize(v); err == nil {
+			if err := lease.Unserialize(v); err == nil {
 				foreach(lease)
 			}
 			return nil

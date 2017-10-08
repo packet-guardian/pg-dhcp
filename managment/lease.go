@@ -11,11 +11,17 @@ type Lease struct {
 	store *store.Store
 }
 
-func (l *Lease) GetAllFromNetwork(name string) []*store.Lease {
-	return server.GetLeasesInNetwork(name)
+func (l *Lease) GetAllFromNetwork(name string, reply *[]*store.Lease) error {
+	*reply = server.GetLeasesInNetwork(name)
+	return nil
 }
 
-func (l *Lease) Get(ip net.IP) *store.Lease {
+func (l *Lease) Get(ip net.IP, reply *store.Lease) error {
 	lease, _ := l.store.GetLease(ip)
-	return lease
+	if lease == nil {
+		return nil
+	}
+
+	*reply = *lease
+	return nil
 }
