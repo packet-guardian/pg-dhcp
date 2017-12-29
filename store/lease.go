@@ -26,7 +26,6 @@ type Lease struct {
 	IsAbandoned bool
 	Offered     bool
 	Registered  bool
-	Used        bool
 }
 
 func NewLease() *Lease {
@@ -35,7 +34,7 @@ func NewLease() *Lease {
 
 // IsFree determines if the lease is expired and available for use
 func (l *Lease) IsFree() bool {
-	return (l.Used || l.IsExpired())
+	return l.IsExpired()
 }
 
 func (l *Lease) IsExpired() bool {

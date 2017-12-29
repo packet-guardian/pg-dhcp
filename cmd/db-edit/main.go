@@ -96,7 +96,6 @@ func parseLeases() ([]*store.Lease, error) {
 		l.IsAbandoned = stringToBool(record[6])
 		l.Offered = stringToBool(record[7])
 		l.Registered = stringToBool(record[8])
-		l.Used = stringToBool(record[9])
 
 		mac, _ := net.ParseMAC(record[1])
 		l.MAC = mac
