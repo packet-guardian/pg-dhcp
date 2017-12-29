@@ -121,7 +121,7 @@ func main() {
 	}
 }
 
-func getAndPrintDevice(c *rpcclient.Client, mac net.HardwareAddr) error {
+func getAndPrintDevice(c rpcclient.Client, mac net.HardwareAddr) error {
 	d, err := c.Device().Get(mac)
 	if err != nil {
 		return err
