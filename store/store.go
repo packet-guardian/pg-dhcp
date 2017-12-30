@@ -11,10 +11,10 @@ type Store interface {
 
 	GetLease(ip net.IP) (*models.Lease, error)
 	PutLease(l *models.Lease) error
-	ForEachLease(foreach func(*models.Lease))
+	ForEachLease(foreach func(*models.Lease)) error
 
-	GetDevice(mac net.HardwareAddr) *models.Device
-	PutDevice(d *models.Device)
-	DeleteDevice(d *models.Device)
-	ForEachDevice(foreach func(*models.Device))
+	GetDevice(mac net.HardwareAddr) (*models.Device, error)
+	PutDevice(d *models.Device) error
+	DeleteDevice(d *models.Device) error
+	ForEachDevice(foreach func(*models.Device)) error
 }

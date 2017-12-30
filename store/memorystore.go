@@ -40,15 +40,16 @@ func (s *MemoryStore) PutLease(l *models.Lease) error {
 	return nil
 }
 
-func (s *MemoryStore) ForEachLease(foreach func(*models.Lease)) {
+func (s *MemoryStore) ForEachLease(foreach func(*models.Lease)) error {
 	s.m.RLock()
 	for _, v := range s.leases {
 		foreach(v)
 	}
 	s.m.RUnlock()
+	return nil
 }
 
-func (s *MemoryStore) GetDevice(mac net.HardwareAddr) *models.Device {
+func (s *MemoryStore) GetDevice(mac net.HardwareAddr) (*models.Device, error) {
 	var d *models.Device
 	s.m.RLock()
 	d = s.devices[mac.String()]
@@ -61,25 +62,28 @@ func (s *MemoryStore) GetDevice(mac net.HardwareAddr) *models.Device {
 			Blacklisted: false,
 		}
 	}
-	return d
+	return d, nil
 }
 
-func (s *MemoryStore) PutDevice(d *models.Device) {
+func (s *MemoryStore) PutDevice(d *models.Device) error {
 	s.m.Lock()
 	s.devices[d.MAC.String()] = d
 	s.m.Unlock()
+	return nil
 }
 
-func (s *MemoryStore) DeleteDevice(d *models.Device) {
+func (s *MemoryStore) DeleteDevice(d *models.Device) error {
 	s.m.Lock()
 	delete(s.devices, d.MAC.String())
 	s.m.Unlock()
+	return nil
 }
 
-func (s *MemoryStore) ForEachDevice(foreach func(*models.Device)) {
+func (s *MemoryStore) ForEachDevice(foreach func(*models.Device)) error {
 	s.m.RLock()
 	for _, v := range s.devices {
 		foreach(v)
 	}
 	s.m.RUnlock()
+	return nil
 }

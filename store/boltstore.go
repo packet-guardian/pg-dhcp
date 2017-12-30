@@ -127,8 +127,8 @@ func (s *BoltStore) PutLease(l *models.Lease) error {
 	return nil
 }
 
-func (s *BoltStore) ForEachLease(foreach func(*models.Lease)) {
-	s.db.View(func(tx *bolt.Tx) error {
+func (s *BoltStore) ForEachLease(foreach func(*models.Lease)) error {
+	return s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(leaseBucket)
 		bucket.ForEach(func(k []byte, v []byte) error {
 			lease := models.NewLease()
@@ -141,7 +141,7 @@ func (s *BoltStore) ForEachLease(foreach func(*models.Lease)) {
 	})
 }
 
-func (s *BoltStore) GetDevice(mac net.HardwareAddr) *models.Device {
+func (s *BoltStore) GetDevice(mac net.HardwareAddr) (*models.Device, error) {
 	var data []byte
 
 	s.db.View(func(tx *bolt.Tx) error {
@@ -157,24 +157,24 @@ func (s *BoltStore) GetDevice(mac net.HardwareAddr) *models.Device {
 	device.MAC = mac
 	device.Registered = byteToBool((data[0] & 2) >> 1)
 	device.Blacklisted = byteToBool(data[0] & 1)
-	return device
+	return device, nil
 }
 
-func (s *BoltStore) PutDevice(d *models.Device) {
+func (s *BoltStore) PutDevice(d *models.Device) error {
 	state := byte(0) | (boolToByte(d.Registered) << 1) | (boolToByte(d.Blacklisted))
-	s.db.Update(func(tx *bolt.Tx) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(deviceBucket).Put([]byte(d.MAC), []byte{state})
 	})
 }
 
-func (s *BoltStore) DeleteDevice(d *models.Device) {
-	s.db.Update(func(tx *bolt.Tx) error {
+func (s *BoltStore) DeleteDevice(d *models.Device) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(deviceBucket).Delete([]byte(d.MAC))
 	})
 }
 
-func (s *BoltStore) ForEachDevice(foreach func(*models.Device)) {
-	s.db.View(func(tx *bolt.Tx) error {
+func (s *BoltStore) ForEachDevice(foreach func(*models.Device)) error {
+	return s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(deviceBucket)
 		bucket.ForEach(func(k []byte, v []byte) error {
 			device := &models.Device{

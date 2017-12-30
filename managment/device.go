@@ -12,12 +12,13 @@ type Device struct {
 }
 
 func (d *Device) Get(mac net.HardwareAddr, reply *models.Device) error {
-	*reply = *d.store.GetDevice(mac)
+	device, _ := d.store.GetDevice(mac)
+	*reply = *device
 	return nil
 }
 
 func (d *Device) Register(mac net.HardwareAddr, ack *bool) error {
-	device := d.store.GetDevice(mac)
+	device, _ := d.store.GetDevice(mac)
 	if !device.Registered {
 		device.Registered = true
 		d.store.PutDevice(device)
@@ -28,7 +29,7 @@ func (d *Device) Register(mac net.HardwareAddr, ack *bool) error {
 }
 
 func (d *Device) Unregister(mac net.HardwareAddr, ack *bool) error {
-	device := d.store.GetDevice(mac)
+	device, _ := d.store.GetDevice(mac)
 	if device.Registered {
 		if device.Blacklisted {
 			device.Registered = false
@@ -43,7 +44,7 @@ func (d *Device) Unregister(mac net.HardwareAddr, ack *bool) error {
 }
 
 func (d *Device) Blacklist(mac net.HardwareAddr, ack *bool) error {
-	device := d.store.GetDevice(mac)
+	device, _ := d.store.GetDevice(mac)
 	if !device.Blacklisted {
 		device.Blacklisted = true
 		d.store.PutDevice(device)
@@ -54,7 +55,7 @@ func (d *Device) Blacklist(mac net.HardwareAddr, ack *bool) error {
 }
 
 func (d *Device) RemoveBlacklist(mac net.HardwareAddr, ack *bool) error {
-	device := d.store.GetDevice(mac)
+	device, _ := d.store.GetDevice(mac)
 	if device.Blacklisted {
 		if device.Registered {
 			device.Blacklisted = false
@@ -69,7 +70,8 @@ func (d *Device) RemoveBlacklist(mac net.HardwareAddr, ack *bool) error {
 }
 
 func (d *Device) Delete(mac net.HardwareAddr, ack *bool) error {
-	d.store.DeleteDevice(d.store.GetDevice(mac))
+	device, _ := d.store.GetDevice(mac)
+	d.store.DeleteDevice(device)
 
 	*ack = true
 	return nil

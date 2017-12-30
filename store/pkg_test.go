@@ -1,7 +1,10 @@
 package store
 
 import (
+	"bytes"
 	"net"
+	"reflect"
+	"testing"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/models"
@@ -50,4 +53,126 @@ var leaseTests = []struct {
 			Registered:  true,
 		},
 	},
+}
+
+func tearDownStore(s Store) error {
+	return s.Close()
+}
+
+type flusher interface {
+	Flush()
+}
+
+func testLeaseStore(t *testing.T, s Store) {
+	lease := leaseTests[0].actual
+	if err := s.PutLease(lease); err != nil {
+		t.Fatal(err)
+	}
+	if f, ok := s.(flusher); ok {
+		f.Flush()
+	}
+
+	lease2, err := s.GetLease(lease.IP)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(lease, lease2) {
+		t.Fatalf("Leases don't match")
+	}
+}
+
+func testForEachLease(t *testing.T, s Store) {
+	lease1 := leaseTests[0].actual
+	lease2 := leaseTests[1].actual
+
+	s.PutLease(lease1)
+	s.PutLease(lease2)
+	if f, ok := s.(flusher); ok {
+		f.Flush()
+	}
+
+	var newLease1, newLease2 *models.Lease
+
+	s.ForEachLease(func(l *models.Lease) {
+		if l.IP.String() == "10.0.2.5" {
+			newLease1 = l
+		} else if l.IP.String() == "10.0.2.6" {
+			newLease2 = l
+		}
+	})
+
+	if newLease1 == nil {
+		t.Error("newLease1 is nil")
+	}
+	if newLease2 == nil {
+		t.Error("newLease2 is nil")
+	}
+}
+
+func testDeviceStore(t *testing.T, s Store) {
+	device := &models.Device{
+		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef}),
+		Registered:  true,
+		Blacklisted: false,
+	}
+	s.PutDevice(device)
+
+	device2, _ := s.GetDevice(device.MAC)
+
+	if !reflect.DeepEqual(device, device2) {
+		t.Fatalf("Devices don't match")
+	}
+}
+
+func testDeviceStoreNonExistantDevice(t *testing.T, s Store) {
+	mac := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
+	device, _ := s.GetDevice(mac)
+
+	if device.Registered {
+		t.Fatal("Non existant device shouldn't be registered")
+	}
+	if device.Blacklisted {
+		t.Fatal("Non existant device shouldn't be blacklisted")
+	}
+}
+
+func testForEachDevice(t *testing.T, s Store) {
+	device1 := &models.Device{
+		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef}),
+		Registered:  true,
+		Blacklisted: false,
+	}
+	device2 := &models.Device{
+		MAC:         net.HardwareAddr([]byte{0x22, 0x34, 0x56, 0xab, 0xcd, 0xef}),
+		Registered:  false,
+		Blacklisted: true,
+	}
+
+	s.PutDevice(device1)
+	s.PutDevice(device2)
+
+	var newDevice1, newDevice2 *models.Device
+
+	s.ForEachDevice(func(d *models.Device) {
+		if bytes.Equal([]byte(d.MAC), []byte(device1.MAC)) {
+			newDevice1 = d
+		} else if bytes.Equal([]byte(d.MAC), []byte(device2.MAC)) {
+			newDevice2 = d
+		}
+	})
+
+	if newDevice1 == nil {
+		t.Error("newDevice1 is nil")
+	}
+	if !reflect.DeepEqual(device1, newDevice1) {
+		t.Fatalf("device1 and newDevice1 don't match")
+	}
+
+	if newDevice2 == nil {
+		t.Error("newDevice2 is nil")
+	}
+	if !reflect.DeepEqual(device2, newDevice2) {
+		t.Fatalf("device2 and newDevice2 don't match")
+	}
 }

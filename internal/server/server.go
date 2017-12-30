@@ -134,22 +134,23 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 		}).Debug()
 	}
 
-	if h.c.Store.GetDevice(p.CHAddr()).Blacklisted && h.c.BlockBlacklist {
+	device, _ := h.c.Store.GetDevice(p.CHAddr())
+	if device.Blacklisted && h.c.BlockBlacklist {
 		return nil
 	}
 
 	var response dhcp4.Packet
 	switch msgType {
 	case dhcp4.Discover:
-		response = h.handleDiscover(p, options)
+		response = h.handleDiscover(p, options, device)
 	case dhcp4.Request:
-		response = h.handleRequest(p, options)
+		response = h.handleRequest(p, options, device)
 	case dhcp4.Release:
-		response = h.handleRelease(p, options)
+		response = h.handleRelease(p, options, device)
 	case dhcp4.Decline:
-		response = h.handleDecline(p, options)
+		response = h.handleDecline(p, options, device)
 	case dhcp4.Inform:
-		response = h.handleInform(p, options)
+		response = h.handleInform(p, options, device)
 	}
 	return response
 }
@@ -159,10 +160,10 @@ func isDeviceRegistered(d *models.Device) bool {
 }
 
 // Handle DHCP DISCOVER messages
-func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 
-	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
+	registered := isDeviceRegistered(device)
 
 	gatewayIP := p.GIAddr().String()
 	// Get network object that the relay IP belongs to
@@ -229,7 +230,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pa
 }
 
 // Handle DHCP REQUEST messages
-func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(c.global.serverIdentifier) {
 		return nil // Message not for this dhcp server
 	}
@@ -244,7 +245,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
-	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
+	registered := isDeviceRegistered(device)
 
 	var network *network
 	// Get network object that the relay or client IP belongs to
@@ -331,14 +332,14 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 }
 
 // Handle DHCP RELEASE messages
-func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 	reqIP := p.CIAddr()
 	if reqIP == nil || reqIP.Equal(net.IPv4zero) {
 		return nil
 	}
 
-	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
+	registered := isDeviceRegistered(device)
 
 	network := c.searchNetworksFor(reqIP)
 	if network == nil {
@@ -390,14 +391,14 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 // TODO: Decline would never work because the ciaddr field will always be 0
 // for a properly formed DECLINE message. Also, a DECLINE has nothing to do
 // with a client being registered or not.
-func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 	reqIP := p.CIAddr()
 	if reqIP == nil || reqIP.Equal(net.IPv4zero) {
 		return nil
 	}
 
-	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
+	registered := isDeviceRegistered(device)
 
 	network := c.searchNetworksFor(reqIP)
 	if network == nil {
@@ -446,7 +447,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pac
 	return nil
 }
 
-func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Packet {
+func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 	ip := p.CIAddr()
 	if ip == nil || ip.Equal(net.IPv4zero) {
@@ -463,7 +464,7 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options) dhcp4.Pack
 		return nil
 	}
 
-	registered := isDeviceRegistered(h.c.Store.GetDevice(p.CHAddr()))
+	registered := isDeviceRegistered(device)
 
 	leaseOptions := pool.getOptions(registered)
 
