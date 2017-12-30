@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/dhcp"
-	"github.com/packet-guardian/pg-dhcp/store"
+	"github.com/packet-guardian/pg-dhcp/models"
 )
 
 type pool struct {
@@ -19,7 +19,7 @@ type pool struct {
 	rangeEnd      net.IP
 	settings      *settings
 	optionsCached bool
-	leases        map[string]*store.Lease // IP -> Lease
+	leases        map[string]*models.Lease // IP -> Lease
 	subnet        *subnet
 	nextFreeStart int
 	ipsInPool     int
@@ -28,7 +28,7 @@ type pool struct {
 func newPool() *pool {
 	return &pool{
 		settings: newSettingsBlock(),
-		leases:   make(map[string]*store.Lease),
+		leases:   make(map[string]*models.Lease),
 	}
 }
 
@@ -84,7 +84,7 @@ func (p *pool) getOptions(registered bool) dhcp4.Options {
 	return p.settings.options
 }
 
-func (p *pool) getFreeLease(s *ServerConfig) *store.Lease {
+func (p *pool) getFreeLease(s *ServerConfig) *models.Lease {
 	p.Lock()
 	defer p.Unlock()
 	now := time.Now()
@@ -125,7 +125,7 @@ func (p *pool) getFreeLease(s *ServerConfig) *store.Lease {
 
 		// IP has no lease with it, no lock since this is a new object
 		// and guarenteed to not be anywhere else yet.
-		l := store.NewLease()
+		l := models.NewLease()
 		l.IP = next
 		l.Network = p.subnet.network.name
 		l.Registered = !p.subnet.allowUnknown
@@ -137,14 +137,14 @@ func (p *pool) getFreeLease(s *ServerConfig) *store.Lease {
 	return nil
 }
 
-func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *store.Lease {
+func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *models.Lease {
 	p.Lock()
 	defer p.Unlock()
 	now := time.Now()
 
 	// No free leases, bring out the big guns
 	// Find the oldest expired lease
-	var longestExpiredLease *store.Lease
+	var longestExpiredLease *models.Lease
 	for _, l := range p.leases {
 		if l.End.After(now) { // Skip active leases
 			continue

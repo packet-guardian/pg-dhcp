@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/packet-guardian/pg-dhcp/store"
+	"github.com/packet-guardian/pg-dhcp/models"
 )
 
 type network struct {
@@ -141,7 +141,7 @@ func (n *network) getPoolOfIP(ip net.IP) *pool {
 	return nil
 }
 
-func (n *network) getFreeLease(e *ServerConfig, registered bool) (*store.Lease, *pool) {
+func (n *network) getFreeLease(e *ServerConfig, registered bool) (*models.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
@@ -155,7 +155,7 @@ func (n *network) getFreeLease(e *ServerConfig, registered bool) (*store.Lease, 
 	return nil, nil
 }
 
-func (n *network) getFreeLeaseDesperate(e *ServerConfig, registered bool) (*store.Lease, *pool) {
+func (n *network) getFreeLeaseDesperate(e *ServerConfig, registered bool) (*models.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
@@ -169,7 +169,7 @@ func (n *network) getFreeLeaseDesperate(e *ServerConfig, registered bool) (*stor
 	return nil, nil
 }
 
-func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*store.Lease, *pool) {
+func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*models.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
@@ -188,7 +188,7 @@ func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*store.L
 	return nil, nil
 }
 
-func (n *network) getLeaseByIP(ip net.IP, registered bool) (*store.Lease, *pool) {
+func (n *network) getLeaseByIP(ip net.IP, registered bool) (*models.Lease, *pool) {
 	for _, s := range n.subnets {
 		if s.allowUnknown == registered {
 			continue
@@ -205,8 +205,8 @@ func (n *network) getLeaseByIP(ip net.IP, registered bool) (*store.Lease, *pool)
 	return nil, nil
 }
 
-func (n *network) getAllLeases() []*store.Lease {
-	leases := make([]*store.Lease, 0, 20)
+func (n *network) getAllLeases() []*models.Lease {
+	leases := make([]*models.Lease, 0, 20)
 	for _, s := range n.subnets {
 		for _, p := range s.pools {
 			for _, l := range p.leases {

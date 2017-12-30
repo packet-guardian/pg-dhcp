@@ -6,13 +6,15 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/packet-guardian/pg-dhcp/models"
 )
 
-func setUpStore() (*Store, error) {
-	return NewStore("test.db")
+func setUpStore() (*BoltStore, error) {
+	return NewBoltStore("test.db")
 }
 
-func tearDownStore(db *Store) {
+func tearDownStore(db *BoltStore) {
 	db.Close()
 	os.Remove("test.db")
 }
@@ -54,9 +56,9 @@ func TestForEachLease(t *testing.T) {
 	store.PutLease(lease2)
 	store.Flush()
 
-	var newLease1, newLease2 *Lease
+	var newLease1, newLease2 *models.Lease
 
-	store.ForEachLease(func(l *Lease) {
+	store.ForEachLease(func(l *models.Lease) {
 		if l.IP.String() == "10.0.2.5" {
 			newLease1 = l
 		} else if l.IP.String() == "10.0.2.6" {
@@ -79,7 +81,7 @@ func TestDeviceStore(t *testing.T) {
 	}
 	defer tearDownStore(store)
 
-	device := &Device{
+	device := &models.Device{
 		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef}),
 		Registered:  true,
 		Blacklisted: false,
@@ -118,12 +120,12 @@ func TestForEachDevice(t *testing.T) {
 	}
 	defer tearDownStore(store)
 
-	device1 := &Device{
+	device1 := &models.Device{
 		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef}),
 		Registered:  true,
 		Blacklisted: false,
 	}
-	device2 := &Device{
+	device2 := &models.Device{
 		MAC:         net.HardwareAddr([]byte{0x22, 0x34, 0x56, 0xab, 0xcd, 0xef}),
 		Registered:  false,
 		Blacklisted: true,
@@ -132,9 +134,9 @@ func TestForEachDevice(t *testing.T) {
 	store.PutDevice(device1)
 	store.PutDevice(device2)
 
-	var newDevice1, newDevice2 *Device
+	var newDevice1, newDevice2 *models.Device
 
-	store.ForEachDevice(func(d *Device) {
+	store.ForEachDevice(func(d *models.Device) {
 		if bytes.Equal([]byte(d.MAC), []byte(device1.MAC)) {
 			newDevice1 = d
 		} else if bytes.Equal([]byte(d.MAC), []byte(device2.MAC)) {

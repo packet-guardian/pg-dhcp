@@ -3,14 +3,15 @@ package management
 import (
 	"net"
 
+	"github.com/packet-guardian/pg-dhcp/models"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
 type Device struct {
-	store *store.Store
+	store store.Store
 }
 
-func (d *Device) Get(mac net.HardwareAddr, reply *store.Device) error {
+func (d *Device) Get(mac net.HardwareAddr, reply *models.Device) error {
 	*reply = *d.store.GetDevice(mac)
 	return nil
 }

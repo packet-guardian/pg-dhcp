@@ -7,8 +7,8 @@ package server
 import (
 	"time"
 
+	"github.com/packet-guardian/pg-dhcp/models"
 	"github.com/packet-guardian/pg-dhcp/stats"
-	"github.com/packet-guardian/pg-dhcp/store"
 )
 
 func GetNetworkList() []string {
@@ -21,7 +21,7 @@ func GetNetworkList() []string {
 	return n
 }
 
-func GetLeasesInNetwork(name string) []*store.Lease {
+func GetLeasesInNetwork(name string) []*models.Lease {
 	net, ok := c.networks[name]
 	if !ok {
 		return nil

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	bolt "github.com/coreos/bbolt"
-	"github.com/packet-guardian/pg-dhcp/store"
+	"github.com/packet-guardian/pg-dhcp/models"
 )
 
 var (
@@ -62,7 +62,7 @@ func main() {
 	}
 }
 
-func parseLeases() ([]*store.Lease, error) {
+func parseLeases() ([]*models.Lease, error) {
 	file, err := os.Open(inputFile)
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func parseLeases() ([]*store.Lease, error) {
 
 	csvReader := csv.NewReader(file)
 	csvReader.FieldsPerRecord = 10
-	leases := make([]*store.Lease, 0, 10)
+	leases := make([]*models.Lease, 0, 10)
 
 	// Discard header
 	_, err = csvReader.Read()
@@ -89,7 +89,7 @@ func parseLeases() ([]*store.Lease, error) {
 		}
 
 		// IP,MAC,Network,Start,End,Hostname,IsAbandoned,Offered,Registered,Used
-		l := &store.Lease{}
+		l := &models.Lease{}
 		l.IP = net.ParseIP(record[0])
 		l.Network = record[2]
 		l.Hostname = record[5]

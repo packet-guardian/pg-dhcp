@@ -3,15 +3,15 @@ package rpcclient
 import (
 	"net"
 
-	"github.com/packet-guardian/pg-dhcp/store"
+	"github.com/packet-guardian/pg-dhcp/models"
 )
 
 type DeviceRPCRequest struct {
 	client *RPCClient
 }
 
-func (d *DeviceRPCRequest) Get(mac net.HardwareAddr) (*store.Device, error) {
-	reply := new(store.Device)
+func (d *DeviceRPCRequest) Get(mac net.HardwareAddr) (*models.Device, error) {
+	reply := new(models.Device)
 	if err := d.client.c.Call("Device.Get", mac, reply); err != nil {
 		return nil, err
 	}

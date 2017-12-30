@@ -20,7 +20,7 @@ const (
 type ServerConfig struct {
 	Env            Environment
 	Log            *verbose.Logger
-	Store          *store.Store
+	Store          store.Store
 	BlockBlacklist bool
 }
 

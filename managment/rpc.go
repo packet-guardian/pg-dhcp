@@ -8,7 +8,7 @@ import (
 )
 
 // StartRPCServer starts a managment RPC server connection
-func StartRPCServer(l net.Listener, db *store.Store) {
+func StartRPCServer(l net.Listener, db store.Store) {
 	rpc.Register(new(Network))
 	rpc.Register(new(Server))
 	rpc.Register(&Lease{store: db})

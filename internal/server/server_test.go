@@ -12,6 +12,7 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	d4 "github.com/packet-guardian/pg-dhcp/dhcp"
+	"github.com/packet-guardian/pg-dhcp/models"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
@@ -45,8 +46,8 @@ func tearDownTest1(h *Handler) {
 	tearDownStore(h.c.Store)
 }
 
-func setDevice(s *store.Store, m net.HardwareAddr, r, b bool) {
-	s.PutDevice(&store.Device{
+func setDevice(s store.Store, m net.HardwareAddr, r, b bool) {
+	s.PutDevice(&models.Device{
 		MAC:         m,
 		Registered:  r,
 		Blacklisted: b,

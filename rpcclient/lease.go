@@ -3,23 +3,23 @@ package rpcclient
 import (
 	"net"
 
-	"github.com/packet-guardian/pg-dhcp/store"
+	"github.com/packet-guardian/pg-dhcp/models"
 )
 
 type LeaseRPCRequest struct {
 	client *RPCClient
 }
 
-func (l *LeaseRPCRequest) GetAllFromNetwork(name string) ([]*store.Lease, error) {
-	var reply []*store.Lease
+func (l *LeaseRPCRequest) GetAllFromNetwork(name string) ([]*models.Lease, error) {
+	var reply []*models.Lease
 	if err := l.client.c.Call("Lease.GetAllFromNetwork", name, &reply); err != nil {
 		return nil, err
 	}
 	return reply, nil
 }
 
-func (l *LeaseRPCRequest) Get(ip net.IP) (*store.Lease, error) {
-	reply := new(store.Lease)
+func (l *LeaseRPCRequest) Get(ip net.IP) (*models.Lease, error) {
+	reply := new(models.Lease)
 	if err := l.client.c.Call("Lease.Get", ip, reply); err != nil {
 		return nil, err
 	}

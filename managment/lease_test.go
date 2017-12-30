@@ -4,11 +4,13 @@ import (
 	"net"
 	"testing"
 
+	"github.com/packet-guardian/pg-dhcp/models"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
 func TestLeaseGetLeaseRPC(t *testing.T) {
 	_, db := setUpTest(t)
+	boltdb := db.(*store.BoltStore)
 	defer tearDownStore(db)
 
 	mac1 := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
@@ -19,19 +21,19 @@ func TestLeaseGetLeaseRPC(t *testing.T) {
 
 	ip3 := net.ParseIP("10.0.2.3")
 
-	db.PutLease(&store.Lease{
+	db.PutLease(&models.Lease{
 		MAC: mac1,
 		IP:  ip1,
 	})
-	db.PutLease(&store.Lease{
+	db.PutLease(&models.Lease{
 		MAC: mac2,
 		IP:  ip2,
 	})
-	db.Flush()
+	boltdb.Flush()
 
 	rpc := &Lease{store: db}
 
-	lease := new(store.Lease)
+	lease := new(models.Lease)
 	if err := rpc.Get(ip2, lease); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +48,7 @@ func TestLeaseGetLeaseRPC(t *testing.T) {
 		t.Fatalf("Wrong lease returned. Expected %s, got %s", mac1.String(), (lease).MAC.String())
 	}
 
-	lease = new(store.Lease)
+	lease = new(models.Lease)
 	if err := rpc.Get(ip3, lease); err != nil {
 		t.Fatal(err)
 	}
@@ -57,6 +59,7 @@ func TestLeaseGetLeaseRPC(t *testing.T) {
 
 func TestLeaseGetAllFromNetworkRPC(t *testing.T) {
 	handler, db := setUpTest(t)
+	boltdb := db.(*store.BoltStore)
 	defer tearDownStore(db)
 
 	mac1 := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
@@ -69,22 +72,22 @@ func TestLeaseGetAllFromNetworkRPC(t *testing.T) {
 	ip3 := net.ParseIP("10.0.2.12")
 
 	// Generate and populate store with leases on network1
-	db.PutLease(&store.Lease{
+	db.PutLease(&models.Lease{
 		MAC:     mac1,
 		IP:      ip1,
 		Network: "network1",
 	})
-	db.PutLease(&store.Lease{
+	db.PutLease(&models.Lease{
 		MAC:     mac2,
 		IP:      ip2,
 		Network: "network1",
 	})
-	db.PutLease(&store.Lease{
+	db.PutLease(&models.Lease{
 		MAC:     mac3,
 		IP:      ip3,
 		Network: "network1",
 	})
-	db.Flush()
+	boltdb.Flush()
 
 	// Make server load generated leases into network
 	if err := handler.LoadLeases(); err != nil {
@@ -93,7 +96,7 @@ func TestLeaseGetAllFromNetworkRPC(t *testing.T) {
 
 	rpc := &Lease{store: db}
 
-	var leases []*store.Lease
+	var leases []*models.Lease
 	if err := rpc.GetAllFromNetwork("network1", &leases); err != nil {
 		t.Fatal(err)
 	}

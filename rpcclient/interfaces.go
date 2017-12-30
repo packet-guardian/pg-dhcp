@@ -3,8 +3,8 @@ package rpcclient
 import (
 	"net"
 
+	"github.com/packet-guardian/pg-dhcp/models"
 	"github.com/packet-guardian/pg-dhcp/stats"
-	"github.com/packet-guardian/pg-dhcp/store"
 )
 
 type Client interface {
@@ -16,7 +16,7 @@ type Client interface {
 }
 
 type DeviceRequest interface {
-	Get(mac net.HardwareAddr) (*store.Device, error)
+	Get(mac net.HardwareAddr) (*models.Device, error)
 	Register(mac net.HardwareAddr) error
 	Unregister(mac net.HardwareAddr) error
 	Blacklist(mac net.HardwareAddr) error
@@ -25,8 +25,8 @@ type DeviceRequest interface {
 }
 
 type LeaseRequest interface {
-	GetAllFromNetwork(name string) ([]*store.Lease, error)
-	Get(ip net.IP) (*store.Lease, error)
+	GetAllFromNetwork(name string) ([]*models.Lease, error)
+	Get(ip net.IP) (*models.Lease, error)
 }
 
 type NetworkRequest interface {

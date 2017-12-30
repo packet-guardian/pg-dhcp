@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/packet-guardian/pg-dhcp/store"
+	"github.com/packet-guardian/pg-dhcp/models"
 )
 
 func TestGetDeviceRPC(t *testing.T) {
@@ -15,13 +15,13 @@ func TestGetDeviceRPC(t *testing.T) {
 	defer tearDownStore(db)
 
 	mac := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
-	db.PutDevice(&store.Device{
+	db.PutDevice(&models.Device{
 		MAC:        mac,
 		Registered: true,
 	})
 
 	device := &Device{store: db}
-	d := new(store.Device)
+	d := new(models.Device)
 
 	device.Get(mac, d)
 	if !d.Registered {
@@ -57,7 +57,7 @@ func TestUnregisterUnblacklistedDeviceRPC(t *testing.T) {
 
 	mac := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
 
-	db.PutDevice(&store.Device{
+	db.PutDevice(&models.Device{
 		MAC:        mac,
 		Registered: true,
 	})
@@ -86,7 +86,7 @@ func TestUnregisterBlacklistedDeviceRPC(t *testing.T) {
 
 	mac := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
 
-	db.PutDevice(&store.Device{
+	db.PutDevice(&models.Device{
 		MAC:         mac,
 		Registered:  true,
 		Blacklisted: true,
@@ -138,7 +138,7 @@ func TestRemoveBlacklistRegisteredDeviceRPC(t *testing.T) {
 
 	mac := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
 
-	db.PutDevice(&store.Device{
+	db.PutDevice(&models.Device{
 		MAC:         mac,
 		Registered:  true,
 		Blacklisted: true,
@@ -171,7 +171,7 @@ func TestDeleteDeviceRPC(t *testing.T) {
 
 	mac := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
 
-	db.PutDevice(&store.Device{
+	db.PutDevice(&models.Device{
 		MAC:        mac,
 		Registered: true,
 	})

@@ -14,7 +14,7 @@ type fatalLogger interface {
 	Fatalf(format string, args ...interface{})
 }
 
-func setUpTest(t fatalLogger) (*server.Handler, *store.Store) {
+func setUpTest(t fatalLogger) (*server.Handler, store.Store) {
 	db, err := setUpStore()
 	if err != nil {
 		t.Fatal(err)
@@ -35,12 +35,12 @@ func setUpTest(t fatalLogger) (*server.Handler, *store.Store) {
 	return server.NewDHCPServer(c, sc), db
 }
 
-func setUpStore() (*store.Store, error) {
+func setUpStore() (store.Store, error) {
 	os.Remove("testing.db")
-	return store.NewStore("testing.db")
+	return store.NewBoltStore("testing.db")
 }
 
-func tearDownStore(db *store.Store) {
+func tearDownStore(db store.Store) {
 	db.Close()
 	os.Remove("testing.db")
 }

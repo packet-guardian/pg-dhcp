@@ -16,7 +16,7 @@ import (
 
 	"github.com/lfkeitel/verbose"
 	"github.com/packet-guardian/pg-dhcp/dhcp"
-	"github.com/packet-guardian/pg-dhcp/store"
+	"github.com/packet-guardian/pg-dhcp/models"
 )
 
 var (
@@ -82,7 +82,7 @@ func (h *Handler) Close() error {
 
 // LoadLeases will import any current leases saved to the database.
 func (h *Handler) LoadLeases() error {
-	h.c.Store.ForEachLease(func(l *store.Lease) {
+	h.c.Store.ForEachLease(func(l *models.Lease) {
 		// Check if the network exists
 		n, ok := c.networks[l.Network]
 		if !ok {
@@ -154,7 +154,7 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 	return response
 }
 
-func isDeviceRegistered(d *store.Device) bool {
+func isDeviceRegistered(d *models.Device) bool {
 	return d.Registered && !d.Blacklisted
 }
 

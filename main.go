@@ -104,7 +104,7 @@ func main() {
 	}
 
 	e.Log.Info("Opening database")
-	store, err := store.NewStore(e.Config.Leases.DatabaseFile)
+	store, err := store.NewBoltStore(e.Config.Leases.DatabaseFile)
 	if err != nil {
 		e.Log.WithField("error", err).Fatal("Error loading lease database")
 	}

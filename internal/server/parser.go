@@ -407,14 +407,14 @@ func (p *parser) parseOption() (dhcp4.OptionCode, []byte, error) {
 			buf := make([]byte, 8)
 			written := binary.PutUvarint(buf, t)
 			if written > int(block.schema.maxlen) {
-				return 0, nil, fmt.Errorf("Number is too big on line %s", tok.line)
+				return 0, nil, fmt.Errorf("Number is too big on line %d", tok.line)
 			}
 			optionData = append(optionData, buf...)
 		case int64:
 			buf := make([]byte, 8)
 			written := binary.PutVarint(buf, t)
 			if written > int(block.schema.maxlen) {
-				return 0, nil, fmt.Errorf("Number is too big on line %s", tok.line)
+				return 0, nil, fmt.Errorf("Number is too big on line %d", tok.line)
 			}
 			optionData = append(optionData, buf...)
 		case string:
