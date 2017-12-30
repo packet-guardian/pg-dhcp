@@ -3,6 +3,12 @@
 // Author: http://richard.warburton.it/
 //
 // Copyright: 2014 Skagerrak Software - http://www.skagerraksoftware.com/
+// Modifications: 2017 Lee Keitel
+
+// Ran twice to generate two files
+//go:generate stringer -type=OptionCode
+//go:generate stringer -type=MessageType
+
 package dhcp4
 
 import (

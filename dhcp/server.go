@@ -1,3 +1,10 @@
+// IPv4 DHCP Library for Parsing and Creating DHCP Packets, along with basic DHCP server functionality
+//
+// Author: http://richard.warburton.it/
+//
+// Copyright: 2014 Skagerrak Software - http://www.skagerraksoftware.com/
+// Modifications: 2017 Lee Keitel
+
 package dhcp4
 
 import (
@@ -5,6 +12,7 @@ import (
 	"strconv"
 )
 
+// A Handler takes a DHCP request packet and generates a response to the client
 type Handler interface {
 	ServeDHCP(req Packet, msgType MessageType, options Options) Packet
 }
@@ -40,7 +48,7 @@ func ListenAndServe(handler Handler) error {
 //
 // Additionally, response packets may not return to the same
 // interface that the request was received from.  Writing a custom ServeConn,
-// or using ServeIf() can provide a workaround to this problem.
+// can provide a workaround to this problem.
 func Serve(conn ServeConn, handler Handler) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -49,8 +57,8 @@ func Serve(conn ServeConn, handler Handler) (err error) {
 		}
 	}()
 
+	buffer := make([]byte, 1500)
 	for {
-		buffer := make([]byte, 1500)
 		n, addr, err := conn.ReadFrom(buffer)
 		if err != nil {
 			return err
@@ -62,24 +70,12 @@ func Serve(conn ServeConn, handler Handler) (err error) {
 		if req.HLen() > 16 { // Invalid size
 			continue
 		}
-		process(&request{
-			conn:    conn,
-			p:       req,
-			handler: handler,
-			from:    addr,
-		})
+		process(conn, req, handler, addr)
 	}
 }
 
-type request struct {
-	conn    ServeConn
-	p       Packet
-	handler Handler
-	from    net.Addr
-}
-
-func process(req *request) {
-	options := req.p.ParseOptions()
+func process(conn ServeConn, p Packet, handler Handler, from net.Addr) {
+	options := p.ParseOptions()
 
 	t := options[OptionDHCPMessageType]
 	if len(t) != 1 {
@@ -91,26 +87,26 @@ func process(req *request) {
 		return
 	}
 
-	if res := req.handler.ServeDHCP(req.p, reqType, options); res != nil {
+	if res := handler.ServeDHCP(p, reqType, options); res != nil {
 		// If coming from a relay, unicast back
-		if !req.p.GIAddr().Equal(net.IPv4zero) {
-			if _, e := req.conn.WriteTo(res, req.from); e != nil {
+		if !p.GIAddr().Equal(net.IPv4zero) {
+			if _, e := conn.WriteTo(res, from); e != nil {
 				panic(e)
 			}
 			return
 		}
 
-		ipStr, portStr, err := net.SplitHostPort(req.from.String())
+		ipStr, portStr, err := net.SplitHostPort(from.String())
 		if err != nil {
 			return
 		}
 
 		// If IP not available or broadcast bit is set, broadcast
-		if net.ParseIP(ipStr).Equal(net.IPv4zero) || req.p.Broadcast() {
+		if net.ParseIP(ipStr).Equal(net.IPv4zero) || p.Broadcast() {
 			port, _ := strconv.Atoi(portStr)
-			req.from = &net.UDPAddr{IP: net.IPv4bcast, Port: port}
+			from = &net.UDPAddr{IP: net.IPv4bcast, Port: port}
 		}
-		if _, e := req.conn.WriteTo(res, req.from); e != nil {
+		if _, e := conn.WriteTo(res, from); e != nil {
 			panic(e)
 		}
 	}

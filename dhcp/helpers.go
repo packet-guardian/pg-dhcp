@@ -1,3 +1,10 @@
+// IPv4 DHCP Library for Parsing and Creating DHCP Packets, along with basic DHCP server functionality
+//
+// Author: http://richard.warburton.it/
+//
+// Copyright: 2014 Skagerrak Software - http://www.skagerraksoftware.com/
+// Modifications: 2017 Lee Keitel
+
 package dhcp4
 
 import (
@@ -34,7 +41,6 @@ func (o Options) SelectOrder(order []byte) []Option {
 
 // IPRange returns how many ips in the ip range from start to stop (inclusive)
 func IPRange(start, stop net.IP) int {
-	//return int(Uint([]byte(stop))-Uint([]byte(start))) + 1
 	return int(binary.BigEndian.Uint32(stop.To4())) - int(binary.BigEndian.Uint32(start.To4())) + 1
 }
 
@@ -42,10 +48,8 @@ func IPRange(start, stop net.IP) int {
 // IPAdd(net.IP{192,168,1,1},30) returns net.IP{192.168.1.31}
 func IPAdd(start net.IP, add int) net.IP { // IPv4 only
 	start = start.To4()
-	//v := Uvarint([]byte(start))
 	result := make(net.IP, 4)
 	binary.BigEndian.PutUint32(result, binary.BigEndian.Uint32(start)+uint32(add))
-	//PutUint([]byte(result), v+uint64(add))
 	return result
 }
 
