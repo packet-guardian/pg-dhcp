@@ -5,12 +5,10 @@ import (
 	"testing"
 
 	"github.com/packet-guardian/pg-dhcp/models"
-	"github.com/packet-guardian/pg-dhcp/store"
 )
 
 func TestLeaseGetLeaseRPC(t *testing.T) {
 	_, db := setUpTest(t)
-	boltdb := db.(*store.BoltStore)
 	defer tearDownStore(db)
 
 	mac1 := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
@@ -29,7 +27,6 @@ func TestLeaseGetLeaseRPC(t *testing.T) {
 		MAC: mac2,
 		IP:  ip2,
 	})
-	boltdb.Flush()
 
 	rpc := &Lease{store: db}
 
@@ -59,7 +56,6 @@ func TestLeaseGetLeaseRPC(t *testing.T) {
 
 func TestLeaseGetAllFromNetworkRPC(t *testing.T) {
 	handler, db := setUpTest(t)
-	boltdb := db.(*store.BoltStore)
 	defer tearDownStore(db)
 
 	mac1 := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
@@ -87,7 +83,6 @@ func TestLeaseGetAllFromNetworkRPC(t *testing.T) {
 		IP:      ip3,
 		Network: "network1",
 	})
-	boltdb.Flush()
 
 	// Make server load generated leases into network
 	if err := handler.LoadLeases(); err != nil {

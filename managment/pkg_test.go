@@ -1,7 +1,6 @@
 package management
 
 import (
-	"os"
 	"sort"
 
 	"github.com/lfkeitel/verbose"
@@ -36,13 +35,11 @@ func setUpTest(t fatalLogger) (*server.Handler, store.Store) {
 }
 
 func setUpStore() (store.Store, error) {
-	os.Remove("testing.db")
-	return store.NewBoltStore("testing.db")
+	return store.NewMemoryStore()
 }
 
 func tearDownStore(db store.Store) {
 	db.Close()
-	os.Remove("testing.db")
 }
 
 func stringSliceEqual(a, b []string) bool {

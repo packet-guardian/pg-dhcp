@@ -245,6 +245,11 @@ func BenchmarkDHCPDiscover(b *testing.B) {
 	defer tearDownTest1(server)
 
 	mac, _ := net.ParseMAC("12:34:56:12:34:56")
+	server.c.Store.PutDevice(&models.Device{
+		MAC:         mac,
+		Registered:  true,
+		Blacklisted: false,
+	})
 
 	pool := c.networks["network1"].subnets[1].pools[0] // Registered pool
 
@@ -259,8 +264,8 @@ func BenchmarkDHCPDiscover(b *testing.B) {
 	p.SetGIAddr(net.ParseIP("10.0.1.5"))
 	unixZero := time.Unix(0, 0)
 
-	b.ResetTimer()
 	b.StopTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StartTimer()
 		dp := server.ServeDHCP(p, d4.Discover, p.ParseOptions())
