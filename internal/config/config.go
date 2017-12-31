@@ -17,9 +17,22 @@ type Config struct {
 		Level    string
 		Path     string
 	}
+	Database struct {
+		Type     string
+		Path     string
+		Username string
+		Password string
+		Protocol string
+		Address  string
+		Port     int
+		Name     string
+
+		LeaseTable     string
+		DeviceTable    string
+		BlacklistTable string
+	}
 	Leases struct {
-		DeleteAfter  string // TODO: Run a job to clean up old leases
-		DatabaseFile string
+		DeleteAfter string // TODO: Run a job to clean up old leases
 	}
 	Server struct {
 		BlockBlacklisted bool
@@ -28,7 +41,7 @@ type Config struct {
 	Management struct {
 		Address    string
 		Port       int
-		AllowedIPs []string
+		AllowedIPs []string // TODO: Implement
 	}
 }
 
@@ -89,12 +102,24 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 	c.Logging.Level = setStringOrDefault(c.Logging.Level, "notice")
 	c.Logging.Path = setStringOrDefault(c.Logging.Path, "logs/pg.log")
 
+	// Database
+	c.Database.Type = setStringOrDefault(c.Database.Type, "boltdb")
+	c.Database.Path = setStringOrDefault(c.Database.Path, "database.db")
+	c.Database.Username = setStringOrDefault(c.Database.Username, "root")
+	c.Database.Password = setStringOrDefault(c.Database.Password, "password")
+	c.Database.Protocol = setStringOrDefault(c.Database.Protocol, "tcp")
+	c.Database.Address = setStringOrDefault(c.Database.Address, "localhost")
+	c.Database.Port = setIntOrDefault(c.Database.Port, 3306)
+
+	c.Database.LeaseTable = setStringOrDefault(c.Database.LeaseTable, "lease")
+	c.Database.DeviceTable = setStringOrDefault(c.Database.DeviceTable, "device")
+	c.Database.BlacklistTable = setStringOrDefault(c.Database.BlacklistTable, "blacklist")
+
 	// Leases
 	c.Leases.DeleteAfter = setStringOrDefault(c.Leases.DeleteAfter, "96h")
 	if _, err := time.ParseDuration(c.Leases.DeleteAfter); err != nil {
 		c.Leases.DeleteAfter = "96h"
 	}
-	c.Leases.DatabaseFile = setStringOrDefault(c.Leases.DatabaseFile, "leases.db")
 
 	// DHCP
 	c.Server.NetworksFile = setStringOrDefault(c.Server.NetworksFile, "/etc/pg-dhcp/dhcp.conf")

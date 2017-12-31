@@ -16,7 +16,6 @@ PWD := $(shell cygpath -w -a `pwd`)
 GOBIN := $(PWD)\bin
 endif
 
-BUILDTAGS ?= dball
 LDFLAGS := -X 'main.version=$(VERSION)' \
 			-X 'main.buildTime=$(BUILDTIME)' \
 			-X 'main.builder=$(BUILDER)' \
@@ -44,6 +43,9 @@ ifdef verbose
 else
 	@go test -race $$(go list ./... | grep -v 'vendor/')
 endif
+
+integration-test:
+	@go test -race -tags mysql $$(go list ./... | grep -v 'vendor/')
 
 coverage:
 	@go test -cover $$(go list ./... | grep -v 'vendor/')

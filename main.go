@@ -9,11 +9,12 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/packet-guardian/pg-dhcp/managment"
+	"github.com/go-sql-driver/mysql"
 
 	"github.com/packet-guardian/pg-dhcp/internal/config"
 	"github.com/packet-guardian/pg-dhcp/internal/server"
 	"github.com/packet-guardian/pg-dhcp/internal/utils"
+	"github.com/packet-guardian/pg-dhcp/managment"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
@@ -104,7 +105,7 @@ func main() {
 	}
 
 	e.Log.Info("Opening database")
-	store, err := store.NewBoltStore(e.Config.Leases.DatabaseFile)
+	store, err := openDatabase(e.Config)
 	if err != nil {
 		e.Log.WithField("error", err).Fatal("Error loading lease database")
 	}
@@ -167,4 +168,43 @@ func testDHCPConfig() {
 	}
 
 	fmt.Println("Configuration looks good")
+}
+
+func openDatabase(cfg *config.Config) (store.Store, error) {
+	switch cfg.Database.Type {
+	case "boltdb":
+		return store.NewBoltStore(cfg.Database.Path)
+	case "memory":
+		return store.NewMemoryStore()
+	case "mysql":
+		return openMySQLStore(cfg)
+	case "pg":
+		return openPGStore(cfg)
+	}
+
+	return nil, fmt.Errorf("Database type '%s' not supported", cfg.Database.Type)
+}
+
+func openMySQLStore(cfg *config.Config) (store.Store, error) {
+	return store.NewMySQLStore(
+		makeSQLConfig(cfg),
+		cfg.Database.LeaseTable,
+		cfg.Database.DeviceTable,
+	)
+}
+
+func openPGStore(cfg *config.Config) (store.Store, error) {
+	return store.NewPGStore(
+		makeSQLConfig(cfg),
+		cfg.Database.LeaseTable,
+		cfg.Database.DeviceTable,
+		cfg.Database.BlacklistTable,
+	)
+}
+
+func makeSQLConfig(cfg *config.Config) *mysql.Config {
+	netAddr := fmt.Sprintf("%s(%s:%d)", cfg.Database.Protocol, cfg.Database.Address, cfg.Database.Port)
+	dsn := fmt.Sprintf("%s:%s@%s/%s?timeout=30s", cfg.Database.Username, cfg.Database.Password, netAddr, cfg.Database.Name)
+	sqlCfg, _ := mysql.ParseDSN(dsn)
+	return sqlCfg
 }

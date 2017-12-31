@@ -40,15 +40,15 @@ func init() {
 	}
 }
 
-func setUpMySQLStore() (*MySQLStore, error) {
+func setUpMySQLStore(t *testing.T) (*MySQLStore, error) {
 	s, err := NewMySQLStore(mysqlCfg, "lease", "device")
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 
 	_, err = s.db.Exec("DROP TABLE IF EXISTS lease, device")
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 
 	_, err = s.db.Exec(`CREATE TABLE "device" (
@@ -57,7 +57,7 @@ func setUpMySQLStore() (*MySQLStore, error) {
 		"blacklisted" TINYINT DEFAULT 0
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8`)
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 
 	_, err = s.db.Exec(`CREATE TABLE "lease" (
@@ -71,17 +71,26 @@ func setUpMySQLStore() (*MySQLStore, error) {
 		"registered" TINYINT DEFAULT 0
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8`)
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
 	return s, err
 }
 
+func tearDownMySQLStore(s *MySQLStore) {
+	s.db.Exec("DROP TABLE IF EXISTS lease, device")
+	s.Close()
+}
+
 func TestLeaseMySQLStore(t *testing.T) {
-	store, err := setUpMySQLStore()
+	if !mysqlAvailable {
+		t.Skipf("MySQL server not running on %s", mysqlCfg.Addr)
+	}
+
+	store, err := setUpMySQLStore(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tearDownStore(store)
+	defer tearDownMySQLStore(store)
 	testLeaseStore(t, store)
 }
 
@@ -90,11 +99,11 @@ func TestForEachLeaseMySQLStore(t *testing.T) {
 		t.Skipf("MySQL server not running on %s", mysqlCfg.Addr)
 	}
 
-	store, err := setUpMySQLStore()
+	store, err := setUpMySQLStore(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tearDownStore(store)
+	defer tearDownMySQLStore(store)
 	testForEachLease(t, store)
 }
 
@@ -103,11 +112,11 @@ func TestDeviceMySQLStore(t *testing.T) {
 		t.Skipf("MySQL server not running on %s", mysqlCfg.Addr)
 	}
 
-	store, err := setUpMySQLStore()
+	store, err := setUpMySQLStore(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tearDownStore(store)
+	defer tearDownMySQLStore(store)
 	testDeviceStore(t, store)
 }
 
@@ -116,11 +125,11 @@ func TestDeviceStoreNonExistantDeviceMySQLStore(t *testing.T) {
 		t.Skipf("MySQL server not running on %s", mysqlCfg.Addr)
 	}
 
-	store, err := setUpMySQLStore()
+	store, err := setUpMySQLStore(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tearDownStore(store)
+	defer tearDownMySQLStore(store)
 	testDeviceStoreNonExistantDevice(t, store)
 }
 
@@ -129,10 +138,10 @@ func TestForEachDeviceMySQLStore(t *testing.T) {
 		t.Skipf("MySQL server not running on %s", mysqlCfg.Addr)
 	}
 
-	store, err := setUpMySQLStore()
+	store, err := setUpMySQLStore(t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tearDownStore(store)
+	defer tearDownMySQLStore(store)
 	testForEachDevice(t, store)
 }

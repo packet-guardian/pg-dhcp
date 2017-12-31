@@ -55,7 +55,7 @@ var leaseTests = []struct {
 	},
 }
 
-func tearDownStore(s Store) error {
+func closeStore(s Store) error {
 	return s.Close()
 }
 
@@ -94,13 +94,16 @@ func testForEachLease(t *testing.T, s Store) {
 
 	var newLease1, newLease2 *models.Lease
 
-	s.ForEachLease(func(l *models.Lease) {
+	err := s.ForEachLease(func(l *models.Lease) {
 		if l.IP.String() == "10.0.2.5" {
 			newLease1 = l
 		} else if l.IP.String() == "10.0.2.6" {
 			newLease2 = l
 		}
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if newLease1 == nil {
 		t.Error("newLease1 is nil")
@@ -111,23 +114,51 @@ func testForEachLease(t *testing.T, s Store) {
 }
 
 func testDeviceStore(t *testing.T, s Store) {
+	// Test not blacklisted
 	device := &models.Device{
-		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef}),
+		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xee}),
 		Registered:  true,
 		Blacklisted: false,
 	}
-	s.PutDevice(device)
+	if err := s.PutDevice(device); err != nil {
+		t.Fatal(err)
+	}
 
-	device2, _ := s.GetDevice(device.MAC)
+	device2, err := s.GetDevice(device.MAC)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if !reflect.DeepEqual(device, device2) {
-		t.Fatalf("Devices don't match")
+		t.Fatalf("Devices don't match: %#v, %#v", device, device2)
+	}
+
+	// Test blacklisted
+	device = &models.Device{
+		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef}),
+		Registered:  true,
+		Blacklisted: true,
+	}
+	if err := s.PutDevice(device); err != nil {
+		t.Fatal(err)
+	}
+
+	device2, err = s.GetDevice(device.MAC)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(device, device2) {
+		t.Fatalf("Devices don't match: %#v, %#v", device, device2)
 	}
 }
 
 func testDeviceStoreNonExistantDevice(t *testing.T, s Store) {
 	mac := net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef})
-	device, _ := s.GetDevice(mac)
+	device, err := s.GetDevice(mac)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if device.Registered {
 		t.Fatal("Non existant device shouldn't be registered")
@@ -149,8 +180,12 @@ func testForEachDevice(t *testing.T, s Store) {
 		Blacklisted: true,
 	}
 
-	s.PutDevice(device1)
-	s.PutDevice(device2)
+	if err := s.PutDevice(device1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.PutDevice(device2); err != nil {
+		t.Fatal(err)
+	}
 
 	var newDevice1, newDevice2 *models.Device
 
