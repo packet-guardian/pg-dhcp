@@ -180,6 +180,8 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 		// Add to cache for later
 		h.gatewayCache[gatewayIP] = network
 	}
+	network.Lock()
+	defer network.Unlock()
 	h.gatewayMutex.Unlock()
 
 	// Find an appropiate lease
@@ -263,6 +265,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 			return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 		}
 	}
+	network.Lock()
+	defer network.Unlock()
 
 	if network == nil {
 		h.c.Log.WithFields(verbose.Fields{
@@ -349,6 +353,8 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 		}).Notice("Got a RELEASE for IP not in a scope")
 		return nil
 	}
+	network.Lock()
+	defer network.Unlock()
 
 	lease, _ := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
@@ -408,6 +414,8 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *m
 		}).Notice("Got a DECLINE for IP not in a scope")
 		return nil
 	}
+	network.Lock()
+	defer network.Unlock()
 
 	lease, _ := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
@@ -458,6 +466,8 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options, device *mo
 	if network == nil {
 		return nil
 	}
+	network.Lock()
+	defer network.Unlock()
 
 	pool := network.getPoolOfIP(ip)
 	if pool == nil {

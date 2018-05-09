@@ -6,7 +6,6 @@ package server
 
 import (
 	"net"
-	"sync"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/dhcp"
@@ -14,7 +13,6 @@ import (
 )
 
 type pool struct {
-	sync.RWMutex
 	rangeStart    net.IP
 	rangeEnd      net.IP
 	settings      *settings
@@ -85,8 +83,6 @@ func (p *pool) getOptions(registered bool) dhcp4.Options {
 }
 
 func (p *pool) getFreeLease(s *ServerConfig) *models.Lease {
-	p.Lock()
-	defer p.Unlock()
 	now := time.Now()
 
 	regFreeTime := p.subnet.network.global.registeredSettings.freeLeaseAfter
@@ -138,8 +134,6 @@ func (p *pool) getFreeLease(s *ServerConfig) *models.Lease {
 }
 
 func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *models.Lease {
-	p.Lock()
-	defer p.Unlock()
 	now := time.Now()
 
 	// No free leases, bring out the big guns

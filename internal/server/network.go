@@ -8,12 +8,14 @@ import (
 	"bytes"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/models"
 )
 
 type network struct {
+	sync.Mutex
 	global               *global
 	name                 string
 	settings             *settings
@@ -175,14 +177,11 @@ func (n *network) getLeaseByMAC(mac net.HardwareAddr, registered bool) (*models.
 			continue
 		}
 		for _, p := range s.pools {
-			p.RLock()
 			for _, l := range p.leases {
 				if bytes.Equal(l.MAC, mac) {
-					p.RUnlock()
 					return l, p
 				}
 			}
-			p.RUnlock()
 		}
 	}
 	return nil, nil
@@ -194,12 +193,9 @@ func (n *network) getLeaseByIP(ip net.IP, registered bool) (*models.Lease, *pool
 			continue
 		}
 		for _, p := range s.pools {
-			p.RLock()
 			if l, ok := p.leases[ip.String()]; ok {
-				p.RUnlock()
 				return l, p
 			}
-			p.RUnlock()
 		}
 	}
 	return nil, nil
