@@ -22,6 +22,7 @@ type ServerConfig struct {
 	Log            *verbose.Logger
 	Store          store.Store
 	BlockBlacklist bool
+	Workers        int
 }
 
 func (s *ServerConfig) IsTesting() bool {

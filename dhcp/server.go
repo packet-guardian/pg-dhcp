@@ -1,8 +1,4 @@
-// IPv4 DHCP Library for Parsing and Creating DHCP Packets, along with basic DHCP server functionality
-//
-// Author: http://richard.warburton.it/
-//
-// Copyright: 2014 Skagerrak Software - http://www.skagerraksoftware.com/
+// Original implementation: 2014 Skagerrak Software - http://www.skagerraksoftware.com/
 // Modifications: 2017 Lee Keitel
 
 package dhcp4
@@ -11,6 +7,15 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
+)
+
+var (
+	bufferPool = sync.Pool{
+		New: func() interface{} {
+			return make([]byte, 1500)
+		},
+	}
 )
 
 // A Handler takes a DHCP request packet and generates a response to the client
@@ -26,17 +31,6 @@ type ServeConn interface {
 	WriteTo(b []byte, addr net.Addr) (n int, err error)
 }
 
-// ListenAndServe listens on the UDP network address addr and then calls
-// Serve with handler to handle requests on incoming packets.
-func ListenAndServe(handler Handler) error {
-	l, err := net.ListenPacket("udp4", ":67")
-	if err != nil {
-		return err
-	}
-	defer l.Close()
-	return Serve(l, handler)
-}
-
 // Serve takes a ServeConn (such as a net.PacketConn) that it uses for both
 // reading and writing DHCP packets. Every packet is passed to the handler,
 // which processes it and optionally return a response packet for writing back
@@ -50,7 +44,7 @@ func ListenAndServe(handler Handler) error {
 // Additionally, response packets may not return to the same
 // interface that the request was received from.  Writing a custom ServeConn,
 // can provide a workaround to this problem.
-func Serve(conn ServeConn, handler Handler) (err error) {
+func Serve(conn ServeConn, handler Handler, workers int) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = r.(error)
@@ -58,10 +52,10 @@ func Serve(conn ServeConn, handler Handler) (err error) {
 		}
 	}()
 
-	taskQueue := startWorkers(4, conn, handler)
+	taskQueue := startWorkers(workers, conn, handler)
 
 	for {
-		buffer := make([]byte, 1500)
+		buffer := bufferPool.Get().([]byte)
 		n, addr, err := conn.ReadFrom(buffer)
 		if err != nil {
 			close(taskQueue)
@@ -79,8 +73,8 @@ func Serve(conn ServeConn, handler Handler) (err error) {
 		case taskQueue <- job{p: req, from: addr}:
 		default:
 			fmt.Println("Task queue full")
+			bufferPool.Put(buffer)
 		}
-		// process(conn, req, handler, addr)
 	}
 }
 
@@ -130,8 +124,8 @@ type job struct {
 func startWorkers(num int, conn ServeConn, handler Handler) chan job {
 	tasks := make(chan job, num*2)
 
-	for i := 0; i < num; i++ {
-		fmt.Printf("Starting worker %d\n", i+1)
+	for i := 1; i <= num; i++ {
+		fmt.Printf("Starting worker %d\n", i)
 		go worker(conn, handler, tasks)
 	}
 
@@ -141,6 +135,7 @@ func startWorkers(num int, conn ServeConn, handler Handler) chan job {
 func worker(conn ServeConn, handler Handler, tasks <-chan job) {
 	for j := range tasks {
 		process(conn, j.p, handler, j.from)
+		bufferPool.Put([]byte(j.p))
 	}
 	fmt.Println("Working stopping")
 }

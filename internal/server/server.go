@@ -37,6 +37,9 @@ func NewDHCPServer(conf *Config, s *ServerConfig) *Handler {
 	if s.Log == nil {
 		s.Log = createLogger()
 	}
+	if s.Workers == 0 {
+		s.Workers = runtime.GOMAXPROCS(0)
+	}
 	c = conf
 
 	return &Handler{
@@ -66,7 +69,7 @@ func (h *Handler) ListenAndServe() error {
 		return err
 	}
 	h.conn = l
-	err = dhcp4.Serve(l, h)
+	err = dhcp4.Serve(l, h, h.c.Workers)
 	if h.closing {
 		return nil
 	}
@@ -131,7 +134,7 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 			"ip":       p.CIAddr().String(),
 			"mac":      p.CHAddr().String(),
 			"relay_ip": p.GIAddr().String(),
-		}).Debug()
+		}).Debug("Incoming request")
 	}
 
 	device, _ := h.c.Store.GetDevice(p.CHAddr())
@@ -265,8 +268,6 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 			return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 		}
 	}
-	network.Lock()
-	defer network.Unlock()
 
 	if network == nil {
 		h.c.Log.WithFields(verbose.Fields{
@@ -275,6 +276,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		}).Info("Got a REQUEST for IP not in a scope")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
+	network.Lock()
+	defer network.Unlock()
 
 	lease, pool := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || lease.MAC == nil { // If it returns a new lease, the MAC is nil

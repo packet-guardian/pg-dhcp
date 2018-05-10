@@ -37,6 +37,7 @@ type Config struct {
 	Server struct {
 		BlockBlacklisted bool
 		NetworksFile     string
+		Workers          int
 	}
 	Management struct {
 		Address    string
@@ -110,6 +111,7 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 	c.Database.Protocol = setStringOrDefault(c.Database.Protocol, "tcp")
 	c.Database.Address = setStringOrDefault(c.Database.Address, "localhost")
 	c.Database.Port = setIntOrDefault(c.Database.Port, 3306)
+	c.Database.Name = setStringOrDefault(c.Database.Name, "pg")
 
 	c.Database.LeaseTable = setStringOrDefault(c.Database.LeaseTable, "lease")
 	c.Database.DeviceTable = setStringOrDefault(c.Database.DeviceTable, "device")

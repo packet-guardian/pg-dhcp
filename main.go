@@ -123,6 +123,7 @@ func main() {
 		Store:          store,
 		Env:            server.EnvProd,
 		BlockBlacklist: e.Config.Server.BlockBlacklisted,
+		Workers:        e.Config.Server.Workers,
 	}
 
 	handler := server.NewDHCPServer(networks, serverConfig)
