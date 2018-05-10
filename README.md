@@ -1,20 +1,22 @@
 # PG-DHCP
 
-[![GoDoc](https://godoc.org/github.com/packet-guardian/pg-dhcp?status.svg)](https://godoc.org/github.com/packet-guardian/pg-dhcp)
 [![GitHub issues](https://img.shields.io/github/issues/packet-guardian/pg-dhcp.svg)](https://github.com/packet-guardian/pg-dhcp/issues)
 [![GitHub stars](https://img.shields.io/github/stars/packet-guardian/pg-dhcp.svg)](https://github.com/packet-guardian/pg-dhcp/stargazers)
 [![GitHub license](https://img.shields.io/badge/license-New%20BSD-blue.svg)](https://raw.githubusercontent.com/packet-guardian/pg-dhcp/master/LICENSE)
 
-This is the DHCP server package backing the Packet Guardian captive portal. It has been separated into it's own repository to make development a bit easier, and to provide a better focus to the origin project. This package may be used completely independently of Packet Guardian.
+This is the DHCP server created specifically for registration scenerios. The server exposes a management API that can be
+implemented with any other application to manage registration and blocked status of a device. The server can also be
+used by itself as a standard DHCP server without any registration information.
 
 ## Features
 
 - RFC2131 DHCP protocol
 - The most used options are implement, more to come
 - Separation of registered vs unregistered devices (known/unknown)
-- Storage independent (there are a few first-party stores such as BoltDB and MySQL, custom storage backends can also be used)
+- Multiple storage options including BoldDB and MySQL/MariaDB
+- Integrates with version 1 of Packet Guardian
 
-[Configuration File Format](docs/example.conf)
+[Documentation](docs)
 
 ## Testing
 

@@ -21,11 +21,11 @@ LDFLAGS := -X 'main.version=$(VERSION)' \
 			-X 'main.builder=$(BUILDER)' \
 			-X 'main.goversion=$(GOVERSION)'
 
-.PHONY: all doc fmt alltests test coverage benchmark lint vet dhcp management dist clean docker server
+.PHONY: all doc fmt alltests test coverage benchmark lint vet dhcp management dist clean docker build
 
-all: test server
+all: test build
 
-server:
+build:
 	GOBIN="$(GOBIN)" go install -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' .
 
 # development tasks
