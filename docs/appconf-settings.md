@@ -34,7 +34,7 @@ NetworksFile     = "networks.conf"  # Path to network definition file
 Workers          = 4                # Number of request workers
 
 [management]
-Address    = 0.0.0.0        # IP address to expose management API
+Address    = "0.0.0.0"      # IP address to expose management API
 Port       = 8677           # Port to expose management API
 AllowedIPs = ["10.2.3.5"]   # List of IP addresses that can access the management API
 ```
