@@ -139,7 +139,11 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 		}).Debug("Incoming request")
 	}
 
-	device, _ := h.c.Store.GetDevice(p.CHAddr())
+	device, err := h.c.Store.GetDevice(p.CHAddr())
+	if err != nil {
+		h.c.Log.WithField("error", err.Error()).Error("Failed getting device")
+		return nil
+	}
 	if device.Blacklisted && h.c.BlockBlacklist {
 		return nil
 	}
