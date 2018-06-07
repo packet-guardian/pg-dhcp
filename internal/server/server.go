@@ -9,6 +9,7 @@ package server
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"runtime"
 	"sync"
@@ -37,9 +38,6 @@ func NewDHCPServer(conf *Config, s *ServerConfig) *Handler {
 	if s.Log == nil {
 		s.Log = createLogger()
 	}
-	if s.Workers == 0 {
-		s.Workers = runtime.GOMAXPROCS(0)
-	}
 	c = conf
 
 	return &Handler{
@@ -63,6 +61,10 @@ func createLogger() *verbose.Logger {
 // ListenAndServe starts the DHCP Handler listening on port 67 for packets.
 // This is blocking like HTTP's ListenAndServe method.
 func (h *Handler) ListenAndServe() error {
+	if h.c.Workers <= 0 {
+		return errors.New("Server.Workers needs to be greater than 0")
+	}
+
 	h.c.Log.Info("Starting DHCP server...")
 	l, err := net.ListenPacket("udp4", ":67")
 	if err != nil {

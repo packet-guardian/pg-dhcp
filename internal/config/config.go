@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/naoina/toml"
@@ -125,6 +126,7 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 
 	// DHCP
 	c.Server.NetworksFile = setStringOrDefault(c.Server.NetworksFile, "/etc/pg-dhcp/dhcp.conf")
+	c.Server.Workers = setIntOrDefault(c.Server.Workers, runtime.GOMAXPROCS(0))
 
 	// Management
 	c.Management.Address = setStringOrDefault(c.Management.Address, "0.0.0.0")
