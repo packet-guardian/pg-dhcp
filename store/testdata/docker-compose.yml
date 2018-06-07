@@ -1,0 +1,9 @@
+version: '3'
+services:
+    test-db:
+        image: mariadb:latest
+        container_name: 'pg-dhcp-test-db'
+        environment:
+            MYSQL_ROOT_PASSWORD: password
+            MYSQL_DATABASE: gotest
+        command: mysqld --ansi

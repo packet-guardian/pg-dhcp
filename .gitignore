@@ -1,2 +1,4 @@
 .vscode/
 private/
+bin/
+database.db
