@@ -21,7 +21,7 @@ func newConfig() *Config {
 
 func (c *Config) searchNetworksFor(ip net.IP) *network {
 	for _, network := range c.networks {
-		if network.includes(ip) {
+		if (ip.Equal(net.IPv4zero) && network.local) || network.includes(ip) {
 			return network
 		}
 	}
