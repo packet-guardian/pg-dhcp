@@ -43,6 +43,7 @@ const (
 	SERVER_IDENTIFIER
 	RANGE
 	INCLUDE
+	LOCAL
 
 	setting_beg
 	OPTION
@@ -73,6 +74,7 @@ var tokens = [...]string{
 	SERVER_IDENTIFIER: "server-identifier",
 	RANGE:             "range",
 	INCLUDE:           "include",
+	LOCAL:             "local",
 
 	OPTION:             "option",
 	FREE_LEASE_AFTER:   "free-lease-after",

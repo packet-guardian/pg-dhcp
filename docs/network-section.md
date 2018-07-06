@@ -40,6 +40,19 @@ end
 
 The start line syntax is `network [name]`. The name is completely arbitrary but must be unique to each network block. Names are case insensitive and are lowercased when parsed. Options may be specified within a network block in which case they will apply to both registered and unregistered subnets in that network. A network may contain one or more registered/unregistered blocks and one or more subnets. Subnets outside of a registered/unregistered block are assumed to be unregistered. Although multiple registered/unregistered blocks may be declared, it's considered best practice to have only one of each. All options from multiple blocks will be consolidated meaning if two registered blocks are created each with different options, those options combined will apply to all registered subnets.
 
+## Local Networks
+
+By default, no network block will respond to a request from the servers local network. The server relies on a relay
+IP to determine which block will service the request. To mark a network as "local", add the keyword `local` after `network`
+before the network name.
+
+```
+network local NetworkName
+    [subnet blocks]
+end
+```
+
+Currently, it is not an error to have multiple local network blocks, but only the first one will be used.
 
 ## Pools
 
