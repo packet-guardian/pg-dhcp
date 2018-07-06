@@ -329,10 +329,11 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		"duration":    leaseDur.String(),
 		"network":     network.name,
 		"relay_ip":    p.GIAddr().String(),
-		"registered":  device.IsRegistered(),
+		"registered":  device.Registered,
 		"hostname":    lease.Hostname,
 		"action":      "request_ack",
-		"blacklisted": device.IsBlacklisted(),
+		"blacklisted": device.Blacklisted,
+		"took":        time.Since(start).String(),
 	}).Info("Acknowledging request")
 
 	return dhcp4.ReplyPacket(
@@ -388,7 +389,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 		"mac":        lease.MAC.String(),
 		"network":    network.name,
 		"relay_ip":   p.GIAddr().String(),
-		"registered": device.IsRegistered(),
+		"registered": device.Registered,
 		"action":     "release",
 		"took":       time.Since(start).String(),
 	}).Info("Releasing lease")
@@ -450,7 +451,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *m
 		"mac":        lease.MAC.String(),
 		"network":    network.name,
 		"relay_ip":   p.GIAddr().String(),
-		"registered": device.IsRegistered(),
+		"registered": device.Registered,
 		"action":     "decline",
 		"took":       time.Since(start).String(),
 	}).Notice("Abandoned lease")
@@ -496,6 +497,7 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options, device *mo
 		"network":  network.name,
 		"relay_ip": p.GIAddr().String(),
 		"action":   "inform",
+		"took":     time.Since(start).String(),
 	}).Info("Informing client")
 
 	return dhcp4.ReplyPacket(
