@@ -2,8 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
-	"net"
+	"os"
+	"sort"
+	"strings"
+	"text/template"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/rpcclient"
@@ -32,113 +36,52 @@ func main() {
 		args = flag.Args()[1:]
 	}
 
-	t := &timer{}
-
-	if command == "device-test" {
-		mac, _ := net.ParseMAC(args[0])
-
-		t.start()
-		if err := client.Device().Register(mac); err != nil {
-			log.Fatal(err)
+	switch command {
+	case "leases":
+		if len(args) != 1 {
+			fmt.Println("leases command expected a network name")
+			os.Exit(1)
 		}
-		t.print()
-
-		t.start()
-		if err := getAndPrintDevice(client, mac); err != nil {
-			log.Fatal(err)
-		}
-		t.print()
-
-		t.start()
-		if err := client.Device().Blacklist(mac); err != nil {
-			log.Fatal(err)
-		}
-		t.print()
-
-		t.start()
-		if err := getAndPrintDevice(client, mac); err != nil {
-			log.Fatal(err)
-		}
-		t.print()
-
-		t.start()
-		if err := client.Device().Unregister(mac); err != nil {
-			log.Fatal(err)
-		}
-		t.print()
-
-		t.start()
-		if err := getAndPrintDevice(client, mac); err != nil {
-			log.Fatal(err)
-		}
-		t.print()
-
-		t.start()
-		if err := client.Device().RemoveBlacklist(mac); err != nil {
-			log.Fatal(err)
-		}
-		t.print()
-
-		t.start()
-		if err := getAndPrintDevice(client, mac); err != nil {
-			log.Fatal(err)
-		}
-		t.print()
-	} else if command == "network-test" {
-		list, err := client.Network().GetNameList()
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("%#v\n", list)
-	} else if command == "lease-test" {
-		leases, err := client.Lease().GetAllFromNetwork("network1")
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, lease := range leases {
-			log.Printf("%#v\n", lease)
-		}
-
-		lease, err := client.Lease().Get(net.ParseIP("10.0.2.12"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("\n%#v\n", lease)
-
-		lease, err = client.Lease().Get(net.ParseIP("10.0.2.3"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("\n%#v\n", lease)
-	} else if command == "stat-test" {
-		stats, err := client.Server().GetPoolStats()
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, stat := range stats {
-			log.Printf("%#v\n", stat)
-		}
+		getLeases(client, args[0])
+	case "networks":
+		getNetworkNames(client)
+	default:
+		fmt.Printf("\"%s\" is not a command\n", command)
+		os.Exit(1)
 	}
 }
 
-func getAndPrintDevice(c rpcclient.Client, mac net.HardwareAddr) error {
-	d, err := c.Device().Get(mac)
+var leasesTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 07:00"}}
+
+Leases in {{.Network}}:
+{{range .Leases}}
+	IP:         {{.IP.String}}
+	MAC:        {{.MAC.String}}
+	Start:      {{.Start.Format "2006-01-02 15:04:05 07:00"}}
+	End:        {{.End.Format "2006-01-02 15:04:05 07:00"}}
+	Hostname:   {{.Hostname}}
+	Registered: {{.Registered}}
+{{end}}
+`))
+
+func getLeases(client rpcclient.Client, network string) {
+	leases, err := client.Lease().GetAllFromNetwork(network)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
-	log.Printf("%#v\n", d)
-	return nil
+	leasesTemplate.Execute(os.Stdout, map[string]interface{}{
+		"Now":     time.Now(),
+		"Network": network,
+		"Leases":  leases,
+	})
 }
 
-type timer struct {
-	s time.Time
-}
-
-func (t *timer) start() {
-	t.s = time.Now()
-}
-
-func (t *timer) print() {
-	log.Printf("%s\n", time.Now().Sub(t.s).String())
+func getNetworkNames(client rpcclient.Client) {
+	networks, err := client.Network().GetNameList()
+	if err != nil {
+		log.Fatal(err)
+	}
+	sort.Strings(networks)
+	fmt.Println(strings.Join(networks, "\n"))
 }
