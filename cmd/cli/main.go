@@ -52,25 +52,25 @@ func main() {
 	}
 }
 
-var multLleaseTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 07:00"}}
+var multLleaseTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 -07:00"}}
 
 Leases in {{.Network}}:
 {{range .Leases}}
 	IP:         {{.IP.String}}
 	MAC:        {{.MAC.String}}
-	Start:      {{.Start.Format "2006-01-02 15:04:05 07:00"}}
-	End:        {{.End.Format "2006-01-02 15:04:05 07:00"}}
+	Start:      {{.Start.Format "2006-01-02 15:04:05 -07:00"}}
+	End:        {{.End.Format "2006-01-02 15:04:05 -07:00"}}
 	Hostname:   {{.Hostname}}
 	Registered: {{.Registered}}
 {{end}}
 `))
 
-var singleLeaseTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 07:00"}}
+var singleLeaseTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 -07:00"}}
 {{with .Lease}}
 	IP:         {{.IP.String}}
 	MAC:        {{.MAC.String}}
-	Start:      {{.Start.Format "2006-01-02 15:04:05 07:00"}}
-	End:        {{.End.Format "2006-01-02 15:04:05 07:00"}}
+	Start:      {{.Start.Format "2006-01-02 15:04:05 -07:00"}}
+	End:        {{.End.Format "2006-01-02 15:04:05 -07:00"}}
 	Hostname:   {{.Hostname}}
 	Registered: {{.Registered}}
 {{end}}
@@ -126,7 +126,7 @@ func getNetworkNames(client rpcclient.Client) {
 	fmt.Println(strings.Join(networks, "\n"))
 }
 
-var poolStatsTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 07:00"}}
+var poolStatsTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 -07:00"}}
 
 Pool Statistics:
 {{range .Pools}}
