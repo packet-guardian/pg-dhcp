@@ -11,3 +11,7 @@
 - [Network Section](network-section.md)
 - [Host Section](host-section.md)
 - [Example File](example.conf)
+
+## RPC Management
+
+- [Documentation](rpc-management.md)
