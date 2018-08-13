@@ -1,14 +1,17 @@
 # PG-DHCP Documentation
 
-## General Information
+## Application Configuration
 
-- [General Overview](general-overview.md)
+- [Configuration Settings](appconf-settings.md)
 
-## Configuration Syntax
+## Network Configuration Syntax
 
 - [General Overview](conf-general-overview.md)
 - [Global Section](global-section.md)
 - [Network Section](network-section.md)
 - [Host Section](host-section.md)
+- [Example File](example.conf)
 
-[Example File](example.conf)
+## RPC Management
+
+- [Documentation](rpc-management.md)

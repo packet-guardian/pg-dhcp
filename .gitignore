@@ -1,2 +1,5 @@
 .vscode/
 private/
+bin/
+database.db
+logs/
