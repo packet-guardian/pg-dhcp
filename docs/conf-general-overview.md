@@ -52,7 +52,6 @@ Options start with the keyword `option` followed by the option name and finally 
 - `network-information-service-domain`
 - `network-information-servers`
 - `network-time-protocol-servers`
-- `vendor-specific-information`
 - `netbios-over-tcpip-name-server`
 - `netbios-over-tcpip-datagram-distribution-server`
 - `netbios-over-tcpip-node-type`
@@ -79,3 +78,7 @@ The following options do NOT begin with the `option` keyword:
 - `default-lease-time` - The amount of time in seconds a lease will be active for. Defaults to 12 hours.
 - `max-lease-time` - The maximum amount of time in seconds a lease will be active for. Defaults to 12 hours.
 - `free-lease-after` - The time in seconds that a lease will be paired with a client MAC address. If a client requests an address after this time, it is not guaranteed they will be given the same lease. This option will only take affect when declared inside a registered and/or unregistered block within the global block.
+
+## Vendor Specific Information
+
+The vendor option (option code 43) is not currently supported.

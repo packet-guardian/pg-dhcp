@@ -26,7 +26,7 @@ Available subcommands:
     - `unblacklist MAC`: Mark a device as not blacklisted
     - `delete MAC`: Delete a device
         - Note: A deleted device will still show information. This is because
-        ever MAC addresses creates an implicit, non-persistent device object
+        every MAC address creates an implicit, non-persistent device object
         using the application defaults for its various field data.
 
 ## RPC Methods

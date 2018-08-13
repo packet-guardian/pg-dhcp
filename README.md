@@ -4,8 +4,9 @@
 [![GitHub stars](https://img.shields.io/github/stars/packet-guardian/pg-dhcp.svg)](https://github.com/packet-guardian/pg-dhcp/stargazers)
 [![GitHub license](https://img.shields.io/badge/license-New%20BSD-blue.svg)](https://raw.githubusercontent.com/packet-guardian/pg-dhcp/master/LICENSE)
 
-This is the DHCP server created specifically for registration scenerios. The server exposes a management API that can be
-implemented with any other application to manage registration and blocked status of a device. The server can also be
+This is the DHCP server created specifically for registration scenarios. The
+server exposes a management API that can be implemented with any other application
+to manage registration and blocked status of a device. The server can also be
 used by itself as a standard DHCP server without any registration information.
 
 ## Features
@@ -14,7 +15,7 @@ used by itself as a standard DHCP server without any registration information.
 - The most used options are implement, more to come
 - Separation of registered vs unregistered devices (known/unknown)
 - Multiple storage options including BoldDB and MySQL/MariaDB
-- Integrates with version 1 of Packet Guardian
+- Integrates directly with [Packet Guardian](https://github.com/packet-guardian/packet-guardian)
 
 [Documentation](docs)
 
