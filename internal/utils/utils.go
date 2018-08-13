@@ -20,3 +20,12 @@ func Btoi(in []byte) int64 {
 	out, _ := binary.Varint(in)
 	return out
 }
+
+func StringSliceContains(ss []string, s string) bool {
+	for _, v := range ss {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}

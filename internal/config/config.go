@@ -13,38 +13,48 @@ import (
 
 type Config struct {
 	sourceFile string
-	Logging    struct {
-		Disabled bool
-		Level    string
-		Path     string
-	}
-	Database struct {
-		Type     string
-		Path     string
-		Username string
-		Password string
-		Protocol string
-		Address  string
-		Port     int
-		Name     string
+	Logging    *LoggingConfig
+	Database   *DatabaseConfig
+	Leases     *LeasesConfig
+	Server     *ServerConfig
+	Management *ManagementConfig
+}
 
-		LeaseTable     string
-		DeviceTable    string
-		BlacklistTable string
-	}
-	Leases struct {
-		DeleteAfter string // TODO: Run a job to clean up old leases
-	}
-	Server struct {
-		BlockBlacklisted bool
-		NetworksFile     string
-		Workers          int
-	}
-	Management struct {
-		Address    string
-		Port       int
-		AllowedIPs []string // TODO: Implement
-	}
+type LoggingConfig struct {
+	Disabled bool
+	Level    string
+	Path     string
+}
+
+type DatabaseConfig struct {
+	Type     string
+	Path     string
+	Username string
+	Password string
+	Protocol string
+	Address  string
+	Port     int
+	Name     string
+
+	LeaseTable     string
+	DeviceTable    string
+	BlacklistTable string
+}
+
+type LeasesConfig struct {
+	DeleteAfter string // TODO: Run a job to clean up old leases
+}
+
+type ServerConfig struct {
+	BlockBlacklisted bool
+	NetworksFile     string
+	Workers          int
+}
+
+type ManagementConfig struct {
+	Address    string
+	Port       int
+	AllowedIPs []string
 }
 
 func FindConfigFile() string {
@@ -100,6 +110,26 @@ func NewConfig(configFile string) (conf *Config, err error) {
 func setSensibleDefaults(c *Config) (*Config, error) {
 	// Anything not set here implies its zero value is the default
 
+	// Ensure all substructs exists
+	if c.Logging == nil {
+		c.Logging = &LoggingConfig{}
+	}
+	if c.Logging == nil {
+		c.Logging = &LoggingConfig{}
+	}
+	if c.Database == nil {
+		c.Database = &DatabaseConfig{}
+	}
+	if c.Leases == nil {
+		c.Leases = &LeasesConfig{}
+	}
+	if c.Server == nil {
+		c.Server = &ServerConfig{}
+	}
+	if c.Management == nil {
+		c.Management = &ManagementConfig{}
+	}
+
 	// Logging
 	c.Logging.Level = setStringOrDefault(c.Logging.Level, "notice")
 	c.Logging.Path = setStringOrDefault(c.Logging.Path, "logs/pg.log")
@@ -131,6 +161,12 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 	// Management
 	c.Management.Address = setStringOrDefault(c.Management.Address, "0.0.0.0")
 	c.Management.Port = setIntOrDefault(c.Management.Port, 8677)
+	if c.Management.AllowedIPs != nil {
+		if utils.StringSliceContains(c.Management.AllowedIPs, "0.0.0.0") {
+			// 0.0.0.0 matches every address, setting this to nil is as if it was never set.
+			c.Management.AllowedIPs = nil
+		}
+	}
 
 	return c, nil
 }

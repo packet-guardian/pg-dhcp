@@ -26,7 +26,10 @@ LDFLAGS := -X 'main.version=$(VERSION)' \
 all: test build
 
 build:
-	GOBIN="$(GOBIN)" go install -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' .
+	go build -o bin/dhcp -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/dhcp/...
+
+build-cli:
+	go build -o bin/dhcp-cli -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/cli/...
 
 # development tasks
 doc:
