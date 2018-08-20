@@ -3,7 +3,8 @@
 CREATE TABLE "device" (
 	"mac" VARCHAR(17) NOT NULL UNIQUE KEY,
 	"registered" TINYINT DEFAULT 0,
-	"blacklisted" TINYINT DEFAULT 0
+	"blacklisted" TINYINT DEFAULT 0,
+	"last_seen" INTEGER NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
 CREATE TABLE "lease" (
@@ -112,19 +113,19 @@ func (s *MySQLStore) prepareLeaseStmts() error {
 
 func (s *MySQLStore) prepareDeviceStmts() error {
 	var err error
-	s.getDeviceStmt, err = s.db.Prepare(fmt.Sprintf(`SELECT "registered", "blacklisted" FROM "%s" WHERE "mac" = ?`, s.deviceTable))
+	s.getDeviceStmt, err = s.db.Prepare(fmt.Sprintf(`SELECT "registered", "blacklisted", "last_seen" FROM "%s" WHERE "mac" = ?`, s.deviceTable))
 	if err != nil {
 		return err
 	}
 
-	s.getAllDevicesStmt, err = s.db.Prepare(fmt.Sprintf(`SELECT "mac", "registered", "blacklisted" FROM "%s"`, s.deviceTable))
+	s.getAllDevicesStmt, err = s.db.Prepare(fmt.Sprintf(`SELECT "mac", "registered", "blacklisted", "last_seen" FROM "%s"`, s.deviceTable))
 	if err != nil {
 		return err
 	}
 
 	s.putDeviceStmt, err = s.db.Prepare(fmt.Sprintf(
-		`INSERT INTO "%s" ("mac", "registered", "blacklisted") VALUES (?,?,?)
-		ON DUPLICATE KEY UPDATE registered=VALUES(registered), blacklisted=VALUES(blacklisted)`, s.deviceTable))
+		`INSERT INTO "%s" ("mac", "registered", "blacklisted", "last_seen") VALUES (?,?,?)
+		ON DUPLICATE KEY UPDATE registered=VALUES(registered), blacklisted=VALUES(blacklisted), last_seen=VALUES(last_seen)`, s.deviceTable))
 	if err != nil {
 		return err
 	}
@@ -264,11 +265,13 @@ func (s *MySQLStore) GetDevice(mac net.HardwareAddr) (*models.Device, error) {
 	var (
 		registered  bool
 		blacklisted bool
+		lastSeen    int64
 	)
 
 	err := row.Scan(
 		&registered,
 		&blacklisted,
+		&lastSeen,
 	)
 	if err == sql.ErrNoRows {
 		err = nil
@@ -278,6 +281,7 @@ func (s *MySQLStore) GetDevice(mac net.HardwareAddr) (*models.Device, error) {
 	device.MAC = mac
 	device.Registered = registered
 	device.Blacklisted = blacklisted
+	device.LastSeen = time.Unix(lastSeen, 0)
 	return device, err
 }
 
@@ -290,6 +294,7 @@ func (s *MySQLStore) PutDevice(d *models.Device) error {
 		d.MAC.String(),
 		d.Registered,
 		d.Blacklisted,
+		d.LastSeen.Unix(),
 	)
 	return err
 }
@@ -319,12 +324,14 @@ func (s *MySQLStore) ForEachDevice(foreach func(*models.Device)) error {
 			macStr      string
 			registered  bool
 			blacklisted bool
+			lastSeen    int64
 		)
 
 		err := rows.Scan(
 			&macStr,
 			&registered,
 			&blacklisted,
+			&lastSeen,
 		)
 		if err != nil {
 			return err
@@ -336,6 +343,7 @@ func (s *MySQLStore) ForEachDevice(foreach func(*models.Device)) error {
 		device.MAC = mac
 		device.Registered = registered
 		device.Blacklisted = blacklisted
+		device.LastSeen = time.Unix(lastSeen, 0)
 		foreach(device)
 	}
 	return nil

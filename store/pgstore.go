@@ -2,7 +2,8 @@
 
 CREATE TABLE "device" (
 	"id" INTEGER PRIMARY KEY,
-	"mac" VARCHAR(17) NOT NULL UNIQUE KEY
+	"mac" VARCHAR(17) NOT NULL UNIQUE KEY,
+	"last_seen" INTEGER NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
 CREATE TABLE "blacklist" (
@@ -29,6 +30,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/packet-guardian/pg-dhcp/models"
 
@@ -72,12 +74,17 @@ func (s *PGStore) prepare() error {
 	s.MySQLStore.prepared = true
 
 	var err error
-	s.pgGetDeviceStmt, err = s.db.Prepare(fmt.Sprintf(`SELECT "id" FROM "%s" WHERE "mac" = ?`, s.deviceTable))
+	s.pgGetDeviceStmt, err = s.db.Prepare(fmt.Sprintf(`SELECT "id", "last_seen" FROM "%s" WHERE "mac" = ?`, s.deviceTable))
 	if err != nil {
 		return err
 	}
 
 	s.pgBlacklistStmt, err = s.db.Prepare(fmt.Sprintf(`SELECT "id" FROM "%s" WHERE "value" = ?`, s.blacklistTable))
+	if err != nil {
+		return err
+	}
+
+	s.putDeviceStmt, err = s.db.Prepare(fmt.Sprintf(`UPDATE "%s" SET "last_seen" = ? WHERE "mac" = ?`, s.deviceTable))
 	if err != nil {
 		return err
 	}
@@ -112,8 +119,12 @@ func (s *PGStore) GetDevice(mac net.HardwareAddr) (*models.Device, error) {
 
 	row := s.pgGetDeviceStmt.QueryRow(mac.String())
 
-	var id int
-	err := row.Scan(&id)
+	var (
+		id       int
+		lastSeen int64
+	)
+
+	err := row.Scan(&id, &lastSeen)
 	if err == sql.ErrNoRows {
 		err = nil
 	}
@@ -122,6 +133,7 @@ func (s *PGStore) GetDevice(mac net.HardwareAddr) (*models.Device, error) {
 	device.MAC = mac
 	device.Registered = id > 0
 	device.Blacklisted = s.deviceBlacklisted(mac)
+	device.LastSeen = time.Unix(lastSeen, 0)
 	return device, err
 }
 
@@ -133,7 +145,15 @@ func (s *PGStore) deviceBlacklisted(mac net.HardwareAddr) bool {
 }
 
 func (s *PGStore) PutDevice(d *models.Device) error {
-	return nil // We don't manage the devices, the management application does.
+	if err := s.prepare(); err != nil {
+		return err
+	}
+
+	_, err := s.putDeviceStmt.Exec(
+		d.LastSeen.Unix(),
+		d.MAC.String(),
+	)
+	return err
 }
 
 func (s *PGStore) DeleteDevice(d *models.Device) error {

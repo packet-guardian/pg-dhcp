@@ -157,6 +157,7 @@ func (s *BoltStore) GetDevice(mac net.HardwareAddr) (*models.Device, error) {
 	device.MAC = mac
 	device.Registered = byteToBool((data[0] & 2) >> 1)
 	device.Blacklisted = byteToBool(data[0] & 1)
+	device.LastSeen = time.Unix(0, 0)
 	return device, nil
 }
 
@@ -181,6 +182,7 @@ func (s *BoltStore) ForEachDevice(foreach func(*models.Device)) error {
 				MAC:         net.HardwareAddr(k),
 				Registered:  byteToBool((v[0] & 2) >> 1),
 				Blacklisted: byteToBool(v[0] & 1),
+				LastSeen:    time.Unix(0, 0),
 			}
 			foreach(device)
 			return nil

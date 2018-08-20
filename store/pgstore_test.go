@@ -19,7 +19,8 @@ func setUpPGStore() (*PGStore, error) {
 
 	_, err = s.db.Exec(`CREATE TABLE "device" (
 		"id" INTEGER PRIMARY KEY AUTO_INCREMENT NOT NULL,
-		"mac" VARCHAR(17) NOT NULL UNIQUE KEY
+		"mac" VARCHAR(17) NOT NULL UNIQUE KEY,
+		"last_seen" INTEGER NOT NULL
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1`)
 	if err != nil {
 		return nil, err
@@ -92,7 +93,7 @@ func TestDevicePGStore(t *testing.T) {
 	defer tearDownPGStore(store)
 
 	// The device table is managed by a separate application so we need to seed it with data
-	_, err = store.db.Exec(`INSERT INTO "device" ("mac") VALUES ('12:34:56:ab:cd:ee'), ('12:34:56:ab:cd:ef')`)
+	_, err = store.db.Exec(`INSERT INTO "device" ("mac", "last_seen") VALUES ('12:34:56:ab:cd:ee', 1534800762), ('12:34:56:ab:cd:ef', 1534700762)`)
 	if err != nil {
 		t.Fatal(err)
 	}

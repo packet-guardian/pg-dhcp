@@ -336,6 +336,14 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		"took":        time.Since(start).String(),
 	}).Info("Acknowledging request")
 
+	if device.Registered {
+		device.LastSeen = time.Now()
+		if err := h.c.Store.PutDevice(device); err != nil {
+			// We won't consider this a critical error, still give out the lease
+			h.c.Log.WithField("Err", err).Error("Failed updating device last_seen attribute")
+		}
+	}
+
 	return dhcp4.ReplyPacket(
 		p,
 		dhcp4.ACK,
