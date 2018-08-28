@@ -153,6 +153,8 @@ mainLoop:
 			break mainLoop
 		case COMMENT, EOL:
 			continue
+		case IGNORE_REGISTRATION:
+			netBlock.ignoreRegistration = true
 		case SUBNET:
 			shortSyntax := false
 			if mode == 0 {
@@ -164,6 +166,7 @@ mainLoop:
 				return err
 			}
 			if mode == 2 { // Unregistered block
+				// This will also set shortmode subnet blocks to unregistered
 				subnet.allowUnknown = true
 			}
 			subnet.network = netBlock

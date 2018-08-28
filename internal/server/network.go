@@ -25,6 +25,7 @@ type network struct {
 	unregOptionsCached   bool
 	subnets              []*subnet
 	local                bool
+	ignoreRegistration   bool
 }
 
 func newNetwork(name string) *network {

@@ -44,6 +44,7 @@ const (
 	RANGE
 	INCLUDE
 	LOCAL
+	IGNORE_REGISTRATION
 
 	setting_beg
 	OPTION
@@ -64,17 +65,18 @@ var tokens = [...]string{
 	IP_ADDRESS: "IP_ADDRESS",
 	BOOLEAN:    "BOOLEAN",
 
-	END:               "end",
-	GLOBAL:            "global",
-	NETWORK:           "network",
-	SUBNET:            "subnet",
-	POOL:              "pool",
-	REGISTERED:        "registered",
-	UNREGISTERED:      "unregistered",
-	SERVER_IDENTIFIER: "server-identifier",
-	RANGE:             "range",
-	INCLUDE:           "include",
-	LOCAL:             "local",
+	END:                 "end",
+	GLOBAL:              "global",
+	NETWORK:             "network",
+	SUBNET:              "subnet",
+	POOL:                "pool",
+	REGISTERED:          "registered",
+	UNREGISTERED:        "unregistered",
+	SERVER_IDENTIFIER:   "server-identifier",
+	RANGE:               "range",
+	INCLUDE:             "include",
+	LOCAL:               "local",
+	IGNORE_REGISTRATION: "ignore-registration",
 
 	OPTION:             "option",
 	FREE_LEASE_AFTER:   "free-lease-after",

@@ -172,8 +172,6 @@ func isDeviceRegistered(d *models.Device) bool {
 func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 
-	registered := isDeviceRegistered(device)
-
 	gatewayIP := p.GIAddr().String()
 	// Get network object that the relay IP belongs to
 	h.gatewayMutex.Lock()
@@ -193,6 +191,8 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 	defer network.Unlock()
 	h.gatewayMutex.Unlock()
 
+	registered := isDeviceRegistered(device) && !network.ignoreRegistration
+
 	// Find an appropiate lease
 	lease, pool := network.getLeaseByMAC(p.CHAddr(), registered)
 	if lease == nil {
@@ -205,6 +205,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 			h.c.Log.WithFields(verbose.Fields{
 				"network":    network.name,
 				"registered": registered,
+				"mac":        p.CHAddr().String(),
 			}).Alert("No free leases available in network")
 			return nil
 		}
@@ -256,8 +257,6 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
-	registered := isDeviceRegistered(device)
-
 	var network *network
 	// Get network object that the relay or client IP belongs to
 	if p.GIAddr().Equal(net.IPv4zero) {
@@ -275,6 +274,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		}
 	}
 
+	registered := isDeviceRegistered(device)
+
 	if network == nil {
 		h.c.Log.WithFields(verbose.Fields{
 			"ip":         reqIP.String(),
@@ -284,6 +285,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 	}
 	network.Lock()
 	defer network.Unlock()
+
+	registered = registered && !network.ignoreRegistration
 
 	lease, pool := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || lease.MAC == nil { // If it returns a new lease, the MAC is nil
@@ -375,6 +378,8 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 	network.Lock()
 	defer network.Unlock()
 
+	registered = registered && !network.ignoreRegistration
+
 	lease, _ := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
 		leaseMac := ""
@@ -437,6 +442,8 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *m
 	network.Lock()
 	defer network.Unlock()
 
+	registered = registered && !network.ignoreRegistration
+
 	lease, _ := network.getLeaseByIP(reqIP, registered)
 	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
 		leaseMac := ""
@@ -495,7 +502,7 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options, device *mo
 		return nil
 	}
 
-	registered := isDeviceRegistered(device)
+	registered := isDeviceRegistered(device) && !network.ignoreRegistration
 
 	leaseOptions := pool.getOptions(registered)
 

@@ -119,6 +119,7 @@ func testDeviceStore(t *testing.T, s Store) {
 		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xee}),
 		Registered:  true,
 		Blacklisted: false,
+		LastSeen:    time.Unix(0, 0),
 	}
 	if err := s.PutDevice(device); err != nil {
 		t.Fatal(err)
@@ -138,6 +139,7 @@ func testDeviceStore(t *testing.T, s Store) {
 		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef}),
 		Registered:  true,
 		Blacklisted: true,
+		LastSeen:    time.Unix(0, 0),
 	}
 	if err := s.PutDevice(device); err != nil {
 		t.Fatal(err)
@@ -173,11 +175,13 @@ func testForEachDevice(t *testing.T, s Store) {
 		MAC:         net.HardwareAddr([]byte{0x12, 0x34, 0x56, 0xab, 0xcd, 0xef}),
 		Registered:  true,
 		Blacklisted: false,
+		LastSeen:    time.Unix(0, 0),
 	}
 	device2 := &models.Device{
 		MAC:         net.HardwareAddr([]byte{0x22, 0x34, 0x56, 0xab, 0xcd, 0xef}),
 		Registered:  false,
 		Blacklisted: true,
+		LastSeen:    time.Unix(0, 0),
 	}
 
 	if err := s.PutDevice(device1); err != nil {
