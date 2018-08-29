@@ -228,6 +228,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 		"network":    network.name,
 		"action":     "offer",
 		"took":       time.Since(start).String(),
+		"relay_ip":   gatewayIP,
 	}).Info("Offering lease to client")
 
 	// Send an offer
