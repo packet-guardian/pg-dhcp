@@ -13,3 +13,11 @@ func (s *ServerRPCRequest) GetPoolStats() ([]*stats.PoolStat, error) {
 	}
 	return reply, nil
 }
+
+func (s *ServerRPCRequest) MemStatus() (*stats.StatusResp, error) {
+	var reply *stats.StatusResp
+	if err := s.client.c.Call("Server.MemStatus", 0, &reply); err != nil {
+		return nil, err
+	}
+	return reply, nil
+}

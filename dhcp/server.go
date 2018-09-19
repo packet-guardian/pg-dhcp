@@ -137,5 +137,5 @@ func worker(conn ServeConn, handler Handler, tasks <-chan job) {
 		process(conn, j.p, handler, j.from)
 		bufferPool.Put([]byte(j.p))
 	}
-	fmt.Println("Working stopping")
+	fmt.Println("Worker stopping")
 }

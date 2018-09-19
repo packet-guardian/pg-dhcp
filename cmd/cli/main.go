@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -16,15 +17,18 @@ import (
 
 var (
 	serverAddress string
+	jsonOut       bool
 )
 
 func init() {
 	flag.StringVar(&serverAddress, "h", "localhost:8677", "DHCP managment host address")
+	flag.BoolVar(&jsonOut, "json", false, "Output JSON")
 }
 
 func main() {
 	flag.Parse()
 
+	fmt.Fprintf(os.Stderr, "Connecting to %s\n", serverAddress)
 	client, err := rpcclient.Connect("tcp", serverAddress)
 	if err != nil {
 		log.Fatal(err)
@@ -44,6 +48,8 @@ func main() {
 		getNetworkNames(client)
 	case "pools":
 		getPoolStats(client)
+	case "memory":
+		getMemStatus(client)
 	case "devices":
 		devicesCmd(client, args)
 	default:
@@ -143,16 +149,54 @@ Pool Statistics:
 {{end}}
 `))
 
+var memStatsTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 -07:00"}}
+{{with .S.GoRoutines}}
+Goroutine Count: {{.RoutineNum}}
+{{end}}{{with .S.Memory}}
+Alloc:        {{.Alloc}}
+TotalAlloc:   {{.TotalAlloc}}
+Sys:          {{.Sys}}
+Mallocs:      {{.Mallocs}}
+Frees:        {{.Frees}}
+PauseTotalNs: {{.PauseTotalNs}}
+NumGC:        {{.NumGC}}
+HeapObjects:  {{.HeapObjects}}
+LastGC:       {{.LastGC}}
+{{end}}
+`))
+
 func getPoolStats(client rpcclient.Client) {
 	stats, err := client.Server().GetPoolStats()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	poolStatsTemplate.Execute(os.Stdout, map[string]interface{}{
-		"Now":   time.Now(),
-		"Pools": stats,
-	})
+	if jsonOut {
+		b, _ := json.Marshal(stats)
+		fmt.Println(string(b))
+	} else {
+		poolStatsTemplate.Execute(os.Stdout, map[string]interface{}{
+			"Now":   time.Now(),
+			"Pools": stats,
+		})
+	}
+}
+
+func getMemStatus(client rpcclient.Client) {
+	stats, err := client.Server().MemStatus()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if jsonOut {
+		b, _ := json.Marshal(stats)
+		fmt.Println(string(b))
+	} else {
+		memStatsTemplate.Execute(os.Stdout, map[string]interface{}{
+			"Now": time.Now(),
+			"S":   stats,
+		})
+	}
 }
 
 func devicesCmd(client rpcclient.Client, args []string) {

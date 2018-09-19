@@ -35,4 +35,5 @@ type NetworkRequest interface {
 
 type ServerRequest interface {
 	GetPoolStats() ([]*stats.PoolStat, error)
+	MemStatus() (*stats.StatusResp, error)
 }
