@@ -81,4 +81,4 @@ The following options do NOT begin with the `option` keyword:
 
 ## Vendor Specific Information
 
-The vendor option (option code 43) is not currently supported.
+Vendor specific options are supported. Please see the [docs page](vendor-options.md) for more.

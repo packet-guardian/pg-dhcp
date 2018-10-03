@@ -66,7 +66,7 @@ func TestDiscover(t *testing.T) {
 	opts := []d4.Option{
 		d4.Option{
 			Code:  d4.OptionParameterRequestList,
-			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
+			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23, 43},
 		},
 	}
 	p := d4.RequestPacket(d4.Discover, mac, nil, nil, false, opts)
@@ -83,17 +83,18 @@ func TestDiscover(t *testing.T) {
 
 	checkIP(dp, []byte{0xa, 0x0, 0x2, 0xa}, t)
 	options := checkOptions(dp, d4.Options{
-		d4.OptionSubnetMask:         []byte{0xff, 0xff, 0xff, 0x0},
-		d4.OptionRouter:             []byte{0xa, 0x0, 0x2, 0x1},
-		d4.OptionDomainNameServer:   []byte{0xa, 0x1, 0x0, 0x1, 0xa, 0x1, 0x0, 0x2},
-		d4.OptionDomainName:         []byte("example.com"),
-		d4.OptionIPAddressLeaseTime: []byte{0x0, 0x1, 0x51, 0x80},
+		d4.OptionSubnetMask:                []byte{0xff, 0xff, 0xff, 0x0},
+		d4.OptionRouter:                    []byte{0xa, 0x0, 0x2, 0x1},
+		d4.OptionDomainNameServer:          []byte{0xa, 0x1, 0x0, 0x1, 0xa, 0x1, 0x0, 0x2},
+		d4.OptionDomainName:                []byte("example.com"),
+		d4.OptionIPAddressLeaseTime:        []byte{0x0, 0x1, 0x51, 0x80},
+		d4.OptionVendorSpecificInformation: []byte{18, 4, 't', 'e', 's', 't'},
 	}, t)
 
 	opts = []d4.Option{
 		d4.Option{
 			Code:  d4.OptionParameterRequestList,
-			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
+			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23, 43},
 		},
 		d4.Option{
 			Code:  d4.OptionServerIdentifier,
@@ -118,12 +119,13 @@ func TestDiscover(t *testing.T) {
 
 	checkIP(rp, dp.YIAddr(), t)
 	checkOptions(rp, d4.Options{
-		d4.OptionDHCPMessageType:    []byte{0x5},
-		d4.OptionSubnetMask:         []byte{0xff, 0xff, 0xff, 0x0},
-		d4.OptionRouter:             []byte{0xa, 0x0, 0x2, 0x1},
-		d4.OptionDomainNameServer:   []byte{0xa, 0x1, 0x0, 0x1, 0xa, 0x1, 0x0, 0x2},
-		d4.OptionDomainName:         []byte("example.com"),
-		d4.OptionIPAddressLeaseTime: []byte{0x0, 0x1, 0x51, 0x80},
+		d4.OptionDHCPMessageType:           []byte{0x5},
+		d4.OptionSubnetMask:                []byte{0xff, 0xff, 0xff, 0x0},
+		d4.OptionRouter:                    []byte{0xa, 0x0, 0x2, 0x1},
+		d4.OptionDomainNameServer:          []byte{0xa, 0x1, 0x0, 0x1, 0xa, 0x1, 0x0, 0x2},
+		d4.OptionDomainName:                []byte("example.com"),
+		d4.OptionIPAddressLeaseTime:        []byte{0x0, 0x1, 0x51, 0x80},
+		d4.OptionVendorSpecificInformation: []byte{18, 4, 't', 'e', 's', 't'},
 	}, t)
 
 	// ROUND 2 - Fight! Test Unregistered Device

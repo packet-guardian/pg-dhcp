@@ -11,7 +11,8 @@ import (
 )
 
 type settings struct {
-	options          map[dhcp4.OptionCode][]byte
+	options          dhcp4.Options
+	vendorOptions    dhcp4.Options
 	defaultLeaseTime time.Duration
 	maxLeaseTime     time.Duration
 	freeLeaseAfter   time.Duration
@@ -19,7 +20,8 @@ type settings struct {
 
 func newSettingsBlock() *settings {
 	return &settings{
-		options: make(map[dhcp4.OptionCode][]byte),
+		options:       make(dhcp4.Options),
+		vendorOptions: make(dhcp4.Options),
 	}
 }
 
@@ -40,4 +42,28 @@ func mergeSettings(d, s *settings) {
 			d.options[c] = v
 		}
 	}
+}
+
+func (s *settings) genVendorOption() []byte {
+	length := 0
+
+	for _, vd := range s.vendorOptions {
+		length += 2 + len(vd) // 2 for code and data length
+	}
+
+	// I can't find in the RFCs exactly if this option
+	// can be send over multiple CLV segments.
+	if length == 0 || length > 255 {
+		return nil
+	}
+
+	data := make([]byte, 0, length)
+	for c, vd := range s.vendorOptions {
+		vdlen := byte(len(vd))
+		data = append(data, byte(c))
+		data = append(data, vdlen)
+		data = append(data, vd...)
+	}
+
+	return data
 }
