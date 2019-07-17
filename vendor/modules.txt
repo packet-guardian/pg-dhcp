@@ -1,0 +1,15 @@
+# github.com/coreos/bbolt v0.0.0-20170928163306-3eac9d3bd834
+github.com/coreos/bbolt
+# github.com/go-sql-driver/mysql v0.0.0-20180719071942-99ff426eb706
+github.com/go-sql-driver/mysql
+# github.com/lfkeitel/verbose v0.0.0-20170322193154-332f9e728b78
+github.com/lfkeitel/verbose
+# github.com/naoina/go-stringutil v0.1.0
+github.com/naoina/go-stringutil
+# github.com/naoina/toml v0.1.0
+github.com/naoina/toml
+github.com/naoina/toml/ast
+# golang.org/x/sys v0.0.0-20190606165138-5da285871e9c
+golang.org/x/sys/unix
+# google.golang.org/appengine v1.6.1
+google.golang.org/appengine/cloudsql
