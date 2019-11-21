@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/lfkeitel/verbose"
-	"github.com/packet-guardian/pg-dhcp/dhcp"
+	dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 	"github.com/packet-guardian/pg-dhcp/models"
 )
 
@@ -317,6 +317,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 	lease.Offered = false
 	if ci, ok := options[dhcp4.OptionHostName]; ok {
 		lease.Hostname = string(ci)
+	} else {
+		lease.Hostname = ""
 	}
 	if err := h.c.Store.PutLease(lease); err != nil {
 		h.c.Log.WithFields(verbose.Fields{
