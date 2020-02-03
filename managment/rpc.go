@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/rpc"
 
-	"github.com/lfkeitel/verbose"
+	"github.com/lfkeitel/verbose/v5"
 	"github.com/packet-guardian/pg-dhcp/internal/config"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
@@ -23,7 +23,7 @@ func StartRPCServer(c *config.ManagementConfig, db store.Store) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("Management server listening on %s", addr)
+	logger.WithField("address", addr).Info("Management server listening")
 
 	return serve(l, c.AllowedIPs)
 }
@@ -46,7 +46,7 @@ func serve(l net.Listener, allowedIPs []string) error {
 			go rpc.DefaultServer.ServeConn(conn)
 		} else {
 			conn.Close()
-			logger.Infof("Blocked management request from %s", conn.RemoteAddr().String())
+			logger.WithField("address", conn.RemoteAddr().String()).Info("Blocked management request")
 		}
 	}
 }

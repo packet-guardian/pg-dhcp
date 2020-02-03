@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lfkeitel/verbose"
+	"github.com/lfkeitel/verbose/v5"
 	d4 "github.com/packet-guardian/pg-dhcp/dhcp"
 	"github.com/packet-guardian/pg-dhcp/models"
 	"github.com/packet-guardian/pg-dhcp/store"
@@ -35,7 +35,7 @@ func setUpTest1(t fatalLogger) *Handler {
 
 	sc := &ServerConfig{
 		Env:   EnvTesting,
-		Log:   verbose.New(""),
+		Log:   verbose.New(),
 		Store: db,
 	}
 

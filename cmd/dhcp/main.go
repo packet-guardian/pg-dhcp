@@ -13,7 +13,7 @@ import (
 	"github.com/packet-guardian/pg-dhcp/internal/config"
 	"github.com/packet-guardian/pg-dhcp/internal/server"
 	"github.com/packet-guardian/pg-dhcp/internal/utils"
-	"github.com/packet-guardian/pg-dhcp/managment"
+	management "github.com/packet-guardian/pg-dhcp/managment"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
@@ -92,10 +92,10 @@ func main() {
 	}
 
 	e.Log = config.NewLogger(e.Config, "dhcp")
-	e.Log.Debugf("Configuration loaded from %s", configFile)
+	e.Log.WithField("path", configFile).Debug("Configuration loaded")
 
 	if !utils.FileExists(e.Config.Server.NetworksFile) {
-		e.Log.Fatalf("DHCP networks file not found: %s", e.Config.Server.NetworksFile)
+		e.Log.WithField("path", e.Config.Server.NetworksFile).Fatal("DHCP networks file not found")
 	}
 
 	networks, err := server.ParseFile(e.Config.Server.NetworksFile)
@@ -137,7 +137,7 @@ func main() {
 	}(e)
 
 	if err := handler.ListenAndServe(); err != nil {
-		e.Log.Fatal(err)
+		e.Log.Fatal(err.Error())
 	}
 }
 

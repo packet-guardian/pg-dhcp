@@ -3,8 +3,10 @@ github.com/coreos/bbolt v0.0.0-20170928163306-3eac9d3bd834/go.mod h1:iRUV2dpdMOn
 github.com/go-sql-driver/mysql v0.0.0-20180719071942-99ff426eb706 h1:P3NPKb7qq581SeMCB+dU1SuCX1kQh8VoQ/4HmT2ftQY=
 github.com/go-sql-driver/mysql v0.0.0-20180719071942-99ff426eb706/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/golang/protobuf v1.3.1/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
-github.com/lfkeitel/verbose v0.0.0-20170322193154-332f9e728b78 h1:JXuKCuZJwb+sA9jtOLUyidBw/uRiO1OhXaTaoaSUPEs=
-github.com/lfkeitel/verbose v0.0.0-20170322193154-332f9e728b78/go.mod h1:EQUiv6cpTLjUSlKDzEhQbOA2xK1m9H1ywujgNLTypwU=
+github.com/konsorten/go-windows-terminal-sequences v1.0.2 h1:DB17ag19krx9CFsz4o3enTrPXyIXCl+2iCXH/aMAp9s=
+github.com/konsorten/go-windows-terminal-sequences v1.0.2/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
+github.com/lfkeitel/verbose/v5 v5.0.0 h1:qoACv35A2SSQWgMQELZpfltlXxxfbLbOI1sGLKKoxAI=
+github.com/lfkeitel/verbose/v5 v5.0.0/go.mod h1:4RvuP2zAHA9+SVo8Bl4knV/s8YE5e8XvC/WifrqbFO0=
 github.com/naoina/go-stringutil v0.1.0 h1:rCUeRUHjBjGTSHl0VC00jUPLz8/F9dDzYI70Hzifhks=
 github.com/naoina/go-stringutil v0.1.0/go.mod h1:XJ2SJL9jCtBh+P9q5btrd/Ylo8XwT/h1USek5+NqSA0=
 github.com/naoina/toml v0.1.0 h1:uDhVQf3Qmc81pKY1PnFOMgAhaAFxZODLxNt4qy1YQkw=
@@ -19,6 +21,8 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5h
 golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20190606165138-5da285871e9c h1:+EXw7AwNOKzPFXMZ1yNjO40aWCh3PIquJB2fYlv9wcs=
 golang.org/x/sys v0.0.0-20190606165138-5da285871e9c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20190916202348-b4ddaad3f8a3 h1:7TYNF4UdlohbFwpNH04CoPMp1cHUZgO1Ebq5r2hIjfo=
+golang.org/x/sys v0.0.0-20190916202348-b4ddaad3f8a3/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
 golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=

@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lfkeitel/verbose"
+	"github.com/lfkeitel/verbose/v5"
 	dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 	"github.com/packet-guardian/pg-dhcp/models"
 )
@@ -48,11 +48,11 @@ func NewDHCPServer(conf *Config, s *ServerConfig) *Handler {
 }
 
 func createLogger() *verbose.Logger {
-	logger := verbose.New("dhcp")
+	logger := verbose.New()
 
 	// Add standard output handler
-	sh := verbose.NewStdoutHandler(true)
-	logger.AddHandler("stdout", sh)
+	sh := verbose.NewTextTransport()
+	logger.AddTransport(sh)
 	sh.SetMinLevel(verbose.LogLevelInfo)
 
 	return logger
