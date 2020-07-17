@@ -25,6 +25,7 @@ func NewEmptyLogger() *verbose.Logger {
 
 func NewLogger(c *Config, name string) *verbose.Logger {
 	logger := verbose.New()
+	logger.Name = "dhcp"
 	setupStdOutLogging(logger, c.Logging.Level)
 
 	if !c.Logging.Disabled {
