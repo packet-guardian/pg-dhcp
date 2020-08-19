@@ -218,8 +218,15 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 	lease.MAC = make([]byte, len(p.CHAddr()))
 	copy(lease.MAC, p.CHAddr())
 	// No Save because this is a temporary "lease", if the client accepts then we commit to storage
+
 	// Get options
 	leaseOptions := pool.getOptions(registered)
+	if block, exists := c.hosts[p.CHAddr().String()]; exists {
+		for c, v := range block.settings.options {
+			// Host block always overrides any other options
+			leaseOptions[c] = v
+		}
+	}
 
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":         lease.IP.String(),
@@ -327,7 +334,14 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		}).Error("Error saving lease")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
+
 	leaseOptions := pool.getOptions(registered)
+	if block, exists := c.hosts[p.CHAddr().String()]; exists {
+		for c, v := range block.settings.options {
+			// Host block always overrides any other options
+			leaseOptions[c] = v
+		}
+	}
 
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":          lease.IP.String(),
@@ -508,6 +522,12 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options, device *mo
 	registered := isDeviceRegistered(device) && !network.ignoreRegistration
 
 	leaseOptions := pool.getOptions(registered)
+	if block, exists := c.hosts[ip.String()]; exists {
+		for c, v := range block.settings.options {
+			// Host block always overrides any other options
+			leaseOptions[c] = v
+		}
+	}
 
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":       ip.String(),

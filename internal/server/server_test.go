@@ -42,6 +42,27 @@ func setUpTest1(t fatalLogger) *Handler {
 	return NewDHCPServer(c, sc)
 }
 
+func setUpTest2(t fatalLogger) *Handler {
+	db, err := setUpStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Setup Configuration
+	c, err := ParseFile("./testdata/hostOptions.conf")
+	if err != nil {
+		t.Fatalf("Test config failed parsing: %v", err)
+	}
+
+	sc := &ServerConfig{
+		Env: EnvTesting,
+		// Log:   verbose.New(),
+		Store: db,
+	}
+
+	return NewDHCPServer(c, sc)
+}
+
 func tearDownTest1(h *Handler) {
 	tearDownStore(h.c.Store)
 }
@@ -361,6 +382,145 @@ func TestIgnoreRegistration(t *testing.T) {
 		d4.OptionDomainName:         []byte("example.com"),
 		d4.OptionIPAddressLeaseTime: []byte{0x0, 0x0, 0x1, 0x68},
 	}, t)
+}
+
+func TestDiscoverHostOptions(t *testing.T) {
+	server := setUpTest2(t)
+	defer tearDownTest1(server)
+	mac, _ := net.ParseMAC("12:34:56:ab:cd:ef")
+
+	// Round 1 - Test Registered Device
+	setDevice(server.c.Store, mac, true, false)
+
+	// Create test request packet
+	opts := []d4.Option{
+		{
+			Code:  d4.OptionParameterRequestList,
+			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
+		},
+	}
+	p := d4.RequestPacket(d4.Discover, mac, nil, nil, false, opts)
+	p.SetGIAddr(net.ParseIP("10.0.4.1"))
+
+	// Process a DISCOVER request
+	start := time.Now()
+	dp := server.ServeDHCP(p, d4.Discover, p.ParseOptions())
+	t.Logf("Discover took: %v", time.Since(start))
+
+	if dp == nil {
+		t.Fatal("Processed packet is nil")
+	}
+
+	checkIP(dp, []byte{0xa, 0x0, 0x3, 0x14}, t)
+	options := checkOptions(dp, d4.Options{
+		d4.OptionSubnetMask:         []byte{0xff, 0xff, 0xff, 0x0},
+		d4.OptionRouter:             []byte{0xa, 0x0, 0x3, 0x1},
+		d4.OptionDomainNameServer:   []byte{0xa, 0x0, 0x0, 0x2},
+		d4.OptionDomainName:         []byte("example.com"),
+		d4.OptionIPAddressLeaseTime: []byte{0, 0, 1, 104},
+	}, t)
+
+	opts = []d4.Option{
+		{
+			Code:  d4.OptionParameterRequestList,
+			Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
+		},
+		{
+			Code:  d4.OptionServerIdentifier,
+			Value: []byte(options[d4.OptionServerIdentifier]),
+		},
+		{
+			Code:  d4.OptionRequestedIPAddress,
+			Value: []byte(dp.YIAddr().To4()),
+		},
+	}
+	p = d4.RequestPacket(d4.Request, mac, nil, nil, false, opts)
+	p.SetGIAddr(net.ParseIP("10.0.4.1"))
+
+	// Process a REQUEST request
+	start = time.Now()
+	rp := server.ServeDHCP(p, d4.Request, p.ParseOptions())
+	t.Logf("Request took: %v", time.Since(start))
+
+	if rp == nil {
+		t.Fatal("Processed packet is nil")
+	}
+
+	checkIP(rp, dp.YIAddr(), t)
+	checkOptions(rp, d4.Options{
+		d4.OptionDHCPMessageType:    []byte{0x5},
+		d4.OptionSubnetMask:         []byte{0xff, 0xff, 0xff, 0x0},
+		d4.OptionRouter:             []byte{0xa, 0x0, 0x3, 0x1},
+		d4.OptionDomainNameServer:   []byte{0xa, 0x0, 0x0, 0x2},
+		d4.OptionDomainName:         []byte("example.com"),
+		d4.OptionIPAddressLeaseTime: []byte{0, 0, 1, 104},
+	}, t)
+
+	// // ROUND 2 - Fight! Test Unregistered Device
+	// setDevice(server.c.Store, mac, false, false)
+
+	// opts = []d4.Option{
+	// 	d4.Option{
+	// 		Code:  d4.OptionParameterRequestList,
+	// 		Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
+	// 	},
+	// }
+	// p = d4.RequestPacket(d4.Discover, mac, nil, nil, false, opts)
+	// p.SetGIAddr(net.ParseIP("10.0.1.5"))
+
+	// // Process a DISCOVER request
+	// start = time.Now()
+	// dp = server.ServeDHCP(p, d4.Discover, p.ParseOptions())
+	// t.Logf("Discover took: %v", time.Since(start))
+
+	// if dp == nil {
+	// 	t.Fatal("Processed packet is nil")
+	// }
+
+	// checkIP(dp, []byte{0xa, 0x0, 0x1, 0xa}, t)
+	// checkOptions(dp, d4.Options{
+	// 	d4.OptionSubnetMask:         []byte{0xff, 0xff, 0xff, 0x0},
+	// 	d4.OptionRouter:             []byte{0xa, 0x0, 0x1, 0x1},
+	// 	d4.OptionDomainNameServer:   []byte{0xa, 0x0, 0x0, 0x1},
+	// 	d4.OptionDomainName:         []byte("example.com"),
+	// 	d4.OptionIPAddressLeaseTime: []byte{0x0, 0x0, 0x1, 0x68},
+	// }, t)
+
+	// opts = []d4.Option{
+	// 	d4.Option{
+	// 		Code:  d4.OptionParameterRequestList,
+	// 		Value: []byte{0x1, 0x3, 0x6, 0xf, 0x23},
+	// 	},
+	// 	d4.Option{
+	// 		Code:  d4.OptionServerIdentifier,
+	// 		Value: []byte(options[d4.OptionServerIdentifier]),
+	// 	},
+	// 	d4.Option{
+	// 		Code:  d4.OptionRequestedIPAddress,
+	// 		Value: []byte(dp.YIAddr().To4()),
+	// 	},
+	// }
+	// p = d4.RequestPacket(d4.Request, mac, nil, nil, false, opts)
+	// p.SetGIAddr(net.ParseIP("10.0.1.5"))
+
+	// // Process a REQUEST request
+	// start = time.Now()
+	// rp = server.ServeDHCP(p, d4.Request, p.ParseOptions())
+	// t.Logf("Request took: %v", time.Since(start))
+
+	// if rp == nil {
+	// 	t.Fatal("Processed packet is nil")
+	// }
+
+	// checkIP(rp, dp.YIAddr(), t)
+	// checkOptions(rp, d4.Options{
+	// 	d4.OptionDHCPMessageType:    []byte{0x5},
+	// 	d4.OptionSubnetMask:         []byte{0xff, 0xff, 0xff, 0x0},
+	// 	d4.OptionRouter:             []byte{0xa, 0x0, 0x1, 0x1},
+	// 	d4.OptionDomainNameServer:   []byte{0xa, 0x0, 0x0, 0x1},
+	// 	d4.OptionDomainName:         []byte("example.com"),
+	// 	d4.OptionIPAddressLeaseTime: []byte{0x0, 0x0, 0x1, 0x68},
+	// }, t)
 }
 
 func checkIP(p d4.Packet, expected net.IP, t *testing.T) {

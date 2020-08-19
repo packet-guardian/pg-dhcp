@@ -30,6 +30,7 @@ const (
 	STRING
 	IP_ADDRESS
 	BOOLEAN
+	MAC_ADDRESS
 	literal_end
 
 	keyword_beg
@@ -48,6 +49,8 @@ const (
 	DECL_OPTION
 	CODE
 	OPTION_TYPE
+	HOST
+	RESERVE
 
 	setting_beg
 	OPTION
@@ -63,10 +66,11 @@ var tokens = [...]string{
 	EOF:     "EOF",
 	COMMENT: "COMMENT",
 
-	NUMBER:     "NUMBER",
-	STRING:     "STRING",
-	IP_ADDRESS: "IP_ADDRESS",
-	BOOLEAN:    "BOOLEAN",
+	NUMBER:      "NUMBER",
+	STRING:      "STRING",
+	IP_ADDRESS:  "IP_ADDRESS",
+	BOOLEAN:     "BOOLEAN",
+	MAC_ADDRESS: "MAC_ADDRESS",
 
 	END:                 "end",
 	GLOBAL:              "global",
@@ -83,6 +87,8 @@ var tokens = [...]string{
 	DECL_OPTION:         "decloption",
 	CODE:                "code",
 	OPTION_TYPE:         "type",
+	HOST:                "host",
+	RESERVE:             "reserve",
 
 	OPTION:             "option",
 	FREE_LEASE_AFTER:   "free-lease-after",
@@ -105,6 +111,10 @@ func (tok token) string() string {
 
 func (tok *lexToken) string() string {
 	return fmt.Sprintf("%s: %v", tok.token.string(), tok.value)
+}
+
+func (tok *lexToken) valString() string {
+	return fmt.Sprintf("%v", tok.value)
 }
 
 func init() {

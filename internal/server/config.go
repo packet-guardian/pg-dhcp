@@ -10,12 +10,14 @@ import "net"
 type Config struct {
 	global   *global
 	networks map[string]*network
+	hosts    map[string]*hostOptions
 }
 
 func newConfig() *Config {
 	return &Config{
 		global:   newGlobal(),
 		networks: make(map[string]*network),
+		hosts:    make(map[string]*hostOptions),
 	}
 }
 
@@ -26,4 +28,16 @@ func (c *Config) searchNetworksFor(ip net.IP) *network {
 		}
 	}
 	return nil
+}
+
+type hostOptions struct {
+	settings     *settings
+	reservations map[string]net.IP
+}
+
+func newHostOptions() *hostOptions {
+	return &hostOptions{
+		settings:     newSettingsBlock(),
+		reservations: make(map[string]net.IP),
+	}
 }

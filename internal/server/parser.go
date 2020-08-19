@@ -16,7 +16,7 @@ import (
 
 	"strconv"
 
-	"github.com/packet-guardian/pg-dhcp/dhcp"
+	dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 )
 
 // ParseFile takes the file name to a configuration file.
@@ -70,6 +70,8 @@ mainLoop:
 			continue
 		case DECL_OPTION:
 			err = p.parseOptionDeclaration()
+		case HOST:
+			err = p.parseHostBlock()
 		case EOF:
 			break mainLoop
 		default:
@@ -554,5 +556,64 @@ mainLoop:
 	}
 
 	p.vendorTypes[name] = optionType
+	return nil
+}
+
+func (p *parser) parseHostBlock() error {
+	macTok := p.l.next()
+	if macTok.token != STRING {
+		return fmt.Errorf("Expected string on line %d", macTok.line)
+	}
+
+	mac, err := net.ParseMAC(macTok.valString())
+	if err != nil {
+		return fmt.Errorf("Expected MAC address on line %d: '%s'", macTok.line, macTok.valString())
+	}
+
+	hostBlock := newHostOptions()
+
+mainLoop:
+	for {
+		tok := p.l.next()
+		switch tok.token {
+		case COMMENT, EOL:
+			continue
+		case EOF, END:
+			break mainLoop
+		case RESERVE:
+			subnetIPAddr := p.l.next()
+			if subnetIPAddr.token != IP_ADDRESS {
+				return fmt.Errorf("Expected IP address on line %d", subnetIPAddr.line)
+			}
+
+			netmask := p.l.next()
+			if netmask.token != IP_ADDRESS {
+				return fmt.Errorf("Expected netmask on line %d", netmask.line)
+			}
+
+			ipAddr := p.l.next()
+			if ipAddr.token != IP_ADDRESS {
+				return fmt.Errorf("Expected IP address on line %d", ipAddr.line)
+			}
+
+			ipmaskOnes, _ := net.IPMask(netmask.value.(net.IP)).Size()
+			key := fmt.Sprintf("%s/%d", subnetIPAddr.valString(), ipmaskOnes)
+
+			hostBlock.reservations[key] = ipAddr.value.(net.IP)
+		default:
+			if tok.token.isSetting() {
+				p.l.unread()
+				err := p.parseSetting(hostBlock.settings)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("Unexpected token %s on line %d in host block", tok.string(), tok.line)
+		}
+	}
+
+	p.c.hosts[mac.String()] = hostBlock
+
 	return nil
 }
