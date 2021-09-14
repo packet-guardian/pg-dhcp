@@ -195,7 +195,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 
 	// Find an appropiate lease
 	lease, pool := network.getLeaseByMAC(p.CHAddr(), registered)
-	if lease == nil {
+	if lease == nil || lease.IsAbandoned {
 		// Device doesn't have a recent lease, get a new one
 		lease, pool = network.getFreeLease(h.c, registered)
 		if lease == nil { // No free lease was found, be more aggressive
@@ -308,6 +308,16 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 			"network":    network.name,
 			"registered": registered,
 		}).Info("Client tried to request lease not belonging to them")
+		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
+	}
+
+	if lease.IsAbandoned {
+		h.c.Log.WithFields(verbose.Fields{
+			"ip":         reqIP.String(),
+			"mac":        p.CHAddr().String(),
+			"network":    network.name,
+			"registered": registered,
+		}).Info("Client tried to request an abandoned lease")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 
