@@ -7,7 +7,7 @@ package server
 import (
 	"time"
 
-	"github.com/packet-guardian/pg-dhcp/dhcp"
+	dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 )
 
 type settings struct {
@@ -20,8 +20,11 @@ type settings struct {
 
 func newSettingsBlock() *settings {
 	return &settings{
-		options:       make(dhcp4.Options),
-		vendorOptions: make(dhcp4.Options),
+		options:          make(dhcp4.Options),
+		vendorOptions:    make(dhcp4.Options),
+		freeLeaseAfter:   5 * time.Hour,
+		defaultLeaseTime: 3600 * time.Second,
+		maxLeaseTime:     3600 * time.Second,
 	}
 }
 
