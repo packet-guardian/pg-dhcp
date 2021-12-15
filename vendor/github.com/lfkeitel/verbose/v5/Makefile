@@ -14,7 +14,4 @@ test:
 vet:
 	go vet ./...
 
-generate:
-	go generate
-
-full: generate lint vet test
+full: lint vet test

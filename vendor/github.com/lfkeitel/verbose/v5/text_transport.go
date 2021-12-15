@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/lfkeitel/verbose/v5/tty"
 )
 
 // Color is an escaped color code for the terminal
@@ -34,41 +36,43 @@ var colors = map[LogLevel]Color{
 	LogLevelFatal:     ColorRed,
 }
 
-// StdoutHandler writes log message to standard out
+// TextTransport writes log message to standard out
 // It even uses color!
-type StdoutHandler struct {
+type TextTransport struct {
+	Formatter Formatter
 	min       LogLevel
 	max       LogLevel
 	out       io.Writer // Usually os.Stdout, mainly used for testing
-	formatter Formatter
 }
 
-// NewStdoutHandler creates a new StdoutHandler, surprise!
+// NewTextTransport creates a new TextTransport, surprise!
 // Color specifies if the log messages will be printed to a colored terminal.
-func NewStdoutHandler(color bool) *StdoutHandler {
-	var formatter Formatter
-	if color {
-		formatter = NewColoredLineFormatter()
-	} else {
-		formatter = NewLineFormatter()
-	}
-	return &StdoutHandler{
+func NewTextTransport() *TextTransport {
+	return NewTextTransportWith(NewLineFormatter(tty.CheckIfTerminal(os.Stderr)))
+}
+
+func NewTextTransportWith(fmt Formatter) *TextTransport {
+	return &TextTransport{
 		min:       LogLevelDebug,
 		max:       LogLevelFatal,
-		out:       os.Stdout,
-		formatter: formatter,
+		out:       os.Stderr,
+		Formatter: fmt,
 	}
+}
+
+func (s *TextTransport) SetOutput(out io.Writer) {
+	s.out = out
 }
 
 // SetLevel will set both the minimum and maximum log levels to l. This makes
 // the handler only respond to the single level l.
-func (s *StdoutHandler) SetLevel(l LogLevel) {
+func (s *TextTransport) SetLevel(l LogLevel) {
 	s.min = l
 	s.max = l
 }
 
 // SetMinLevel will set the minimum log level the handler will handle.
-func (s *StdoutHandler) SetMinLevel(l LogLevel) {
+func (s *TextTransport) SetMinLevel(l LogLevel) {
 	if l > s.max {
 		return
 	}
@@ -76,27 +80,22 @@ func (s *StdoutHandler) SetMinLevel(l LogLevel) {
 }
 
 // SetMaxLevel will set the maximum log level the handler will handle.
-func (s *StdoutHandler) SetMaxLevel(l LogLevel) {
+func (s *TextTransport) SetMaxLevel(l LogLevel) {
 	if l < s.min {
 		return
 	}
 	s.max = l
 }
 
-// SetFormatter gives StdoutHandler a formatter for log messages.
-func (s *StdoutHandler) SetFormatter(f Formatter) {
-	s.formatter = f
-}
-
 // Handles returns whether the handler handles log level l.
-func (s *StdoutHandler) Handles(l LogLevel) bool {
+func (s *TextTransport) Handles(l LogLevel) bool {
 	return (s.min <= l && l <= s.max)
 }
 
 // WriteLog writes the log message to standard output
-func (s *StdoutHandler) WriteLog(e *Entry) {
-	fmt.Fprint(s.out, s.formatter.Format(e))
+func (s *TextTransport) WriteLog(e *Entry) {
+	fmt.Fprint(s.out, s.Formatter.Format(e))
 }
 
 // Close satisfies the interface, NOOP
-func (s *StdoutHandler) Close() {}
+func (s *TextTransport) Close() {}
