@@ -19,11 +19,16 @@ type global struct {
 }
 
 func newGlobal() *global {
-	return &global{
+	g := &global{
 		settings:             newSettingsBlock(),
 		registeredSettings:   newSettingsBlock(),
 		unregisteredSettings: newSettingsBlock(),
 	}
+
+	g.settings.defaultLeaseTime = 3600 * time.Second
+	g.settings.maxLeaseTime = 3600 * time.Second
+	g.settings.freeLeaseAfter = 5 * time.Hour
+	return g
 }
 
 // GetLeaseTime returns the lease time given the requested time req and if the client is registered.

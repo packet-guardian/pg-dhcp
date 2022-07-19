@@ -15,20 +15,20 @@ func TestSettingsMerge(t *testing.T) {
 
 	s.options[dhcp4.OptionBroadcastAddress] = []byte{10, 0, 254, 3}
 	s.options[dhcp4.OptionDomainName] = []byte("example.com")
-	s.defaultLeaseTime = 360
-	s.maxLeaseTime = 500
-	s.freeLeaseAfter = 1800
+	s.defaultLeaseTime = 360 * time.Second
+	s.maxLeaseTime = 500 * time.Second
+	s.freeLeaseAfter = 1800 * time.Second
 
 	mergeSettings(d, s)
 
 	if d.defaultLeaseTime != s.defaultLeaseTime {
-		t.Errorf("Expected %d, got %d", d.defaultLeaseTime, s.defaultLeaseTime)
+		t.Errorf("Expected %d, got %d", s.defaultLeaseTime, d.defaultLeaseTime)
 	}
 	if d.maxLeaseTime != s.maxLeaseTime {
-		t.Errorf("Expected %d, got %d", d.maxLeaseTime, s.maxLeaseTime)
+		t.Errorf("Expected %d, got %d", s.maxLeaseTime, d.maxLeaseTime)
 	}
 	if d.freeLeaseAfter != s.freeLeaseAfter {
-		t.Errorf("Expected %d, got %d", d.freeLeaseAfter, s.freeLeaseAfter)
+		t.Errorf("Expected %d, got %d", s.freeLeaseAfter, d.freeLeaseAfter)
 	}
 
 	// Ensure the original value stays intact

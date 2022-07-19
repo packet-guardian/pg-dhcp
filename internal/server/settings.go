@@ -22,9 +22,9 @@ func newSettingsBlock() *settings {
 	return &settings{
 		options:          make(dhcp4.Options),
 		vendorOptions:    make(dhcp4.Options),
-		freeLeaseAfter:   5 * time.Hour,
-		defaultLeaseTime: 3600 * time.Second,
-		maxLeaseTime:     3600 * time.Second,
+		freeLeaseAfter:   0,
+		defaultLeaseTime: 0,
+		maxLeaseTime:     0,
 	}
 }
 
