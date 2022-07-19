@@ -3,8 +3,9 @@ package server
 import (
 	"bytes"
 	"testing"
+	"time"
 
-	"github.com/packet-guardian/pg-dhcp/dhcp"
+	dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 )
 
 func TestSettingsMerge(t *testing.T) {

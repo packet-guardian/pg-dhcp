@@ -10,12 +10,14 @@ import "net"
 type Config struct {
 	global   *global
 	networks map[string]*network
+	hosts    map[string]*host
 }
 
 func newConfig() *Config {
 	return &Config{
 		global:   newGlobal(),
 		networks: make(map[string]*network),
+		hosts:    make(map[string]*host),
 	}
 }
 

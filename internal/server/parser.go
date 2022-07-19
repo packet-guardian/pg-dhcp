@@ -16,7 +16,7 @@ import (
 
 	"strconv"
 
-	"github.com/packet-guardian/pg-dhcp/dhcp"
+	dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 )
 
 // ParseFile takes the file name to a configuration file.
@@ -70,6 +70,8 @@ mainLoop:
 			continue
 		case DECL_OPTION:
 			err = p.parseOptionDeclaration()
+		case HOST:
+			err = p.parseHost()
 		case EOF:
 			break mainLoop
 		default:
@@ -319,6 +321,21 @@ mainLoop:
 		}
 	}
 	return nPool, nil
+}
+
+func (p *parser) parseHost() error {
+	mac := p.l.next()
+	if mac.token != MAC_ADDRESS {
+		return fmt.Errorf("Expected MAC address on line %d, got %#v", mac.line, mac)
+	}
+
+	nHost := newHost()
+
+	s, err := p.parseSettingsBlock()
+	nHost.settings = s
+	p.c.hosts[mac.value.(net.HardwareAddr).String()] = nHost
+	p.l.next() // Skip END token
+	return err
 }
 
 func (p *parser) parseSettingsBlock() (*settings, error) {

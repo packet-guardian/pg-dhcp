@@ -30,6 +30,7 @@ const (
 	STRING
 	IP_ADDRESS
 	BOOLEAN
+	MAC_ADDRESS
 	literal_end
 
 	keyword_beg
@@ -38,6 +39,7 @@ const (
 	NETWORK
 	SUBNET
 	POOL
+	HOST
 	REGISTERED
 	UNREGISTERED
 	SERVER_IDENTIFIER
@@ -63,16 +65,18 @@ var tokens = [...]string{
 	EOF:     "EOF",
 	COMMENT: "COMMENT",
 
-	NUMBER:     "NUMBER",
-	STRING:     "STRING",
-	IP_ADDRESS: "IP_ADDRESS",
-	BOOLEAN:    "BOOLEAN",
+	NUMBER:      "NUMBER",
+	STRING:      "STRING",
+	IP_ADDRESS:  "IP_ADDRESS",
+	BOOLEAN:     "BOOLEAN",
+	MAC_ADDRESS: "MAC_ADDRESS",
 
 	END:                 "end",
 	GLOBAL:              "global",
 	NETWORK:             "network",
 	SUBNET:              "subnet",
 	POOL:                "pool",
+	HOST:                "host",
 	REGISTERED:          "registered",
 	UNREGISTERED:        "unregistered",
 	SERVER_IDENTIFIER:   "server-identifier",

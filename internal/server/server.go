@@ -221,6 +221,13 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 	// Get options
 	leaseOptions := pool.getOptions(registered)
 
+	// Merge host options
+	if hostConfig, exists := c.hosts[p.CHAddr().String()]; exists {
+		for o, v := range hostConfig.settings.options {
+			leaseOptions[o] = v
+		}
+	}
+
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":         lease.IP.String(),
 		"mac":        p.CHAddr().String(),
@@ -338,6 +345,13 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
 	leaseOptions := pool.getOptions(registered)
+
+	// Merge host options
+	if hostConfig, exists := c.hosts[p.CHAddr().String()]; exists {
+		for o, v := range hostConfig.settings.options {
+			leaseOptions[o] = v
+		}
+	}
 
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":          lease.IP.String(),
@@ -518,6 +532,13 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options, device *mo
 	registered := isDeviceRegistered(device) && !network.ignoreRegistration
 
 	leaseOptions := pool.getOptions(registered)
+
+	// Merge host options
+	if hostConfig, exists := c.hosts[p.CHAddr().String()]; exists {
+		for o, v := range hostConfig.settings.options {
+			leaseOptions[o] = v
+		}
+	}
 
 	h.c.Log.WithFields(verbose.Fields{
 		"ip":       ip.String(),
