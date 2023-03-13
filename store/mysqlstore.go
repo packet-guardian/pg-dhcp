@@ -124,7 +124,7 @@ func (s *MySQLStore) prepareDeviceStmts() error {
 	}
 
 	s.putDeviceStmt, err = s.db.Prepare(fmt.Sprintf(
-		`INSERT INTO "%s" ("mac", "registered", "blacklisted", "last_seen") VALUES (?,?,?)
+		`INSERT INTO "%s" ("mac", "registered", "blacklisted", "last_seen") VALUES (?,?,?,?)
 		ON DUPLICATE KEY UPDATE registered=VALUES(registered), blacklisted=VALUES(blacklisted), last_seen=VALUES(last_seen)`, s.deviceTable))
 	if err != nil {
 		return err
