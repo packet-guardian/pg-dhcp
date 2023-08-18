@@ -452,38 +452,51 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 	reqIP := p.CIAddr()
-	if reqIP == nil || reqIP.Equal(net.IPv4zero) {
-		return nil
-	}
 
 	registered := isDeviceRegistered(device)
+	var network *network
 
-	network := c.searchNetworksFor(reqIP)
-	if network == nil {
-		h.c.Log.WithFields(verbose.Fields{
-			"ip":         reqIP.String(),
-			"registered": registered,
-		}).Notice("Got a DECLINE for IP not in a scope")
-		return nil
+	if reqIP == nil || reqIP.Equal(net.IPv4zero) { // Matches RFC
+		var ok bool
+		gatewayIP := p.GIAddr().String()
+		h.gatewayMutex.Lock()
+
+		network, ok = h.gatewayCache[gatewayIP]
+		if !ok {
+			// That gateway hasn't been seen before, find its network
+			network = c.searchNetworksFor(p.GIAddr())
+			if network == nil {
+				h.gatewayMutex.Unlock()
+				h.c.Log.WithField("relay_ip", gatewayIP).Notice("Network not found")
+				return nil
+			}
+			// Add to cache for later
+			h.gatewayCache[gatewayIP] = network
+		}
+		network.Lock()
+		defer network.Unlock()
+		h.gatewayMutex.Unlock()
+	} else {
+		network = c.searchNetworksFor(reqIP)
+		if network == nil {
+			h.c.Log.WithFields(verbose.Fields{
+				"ip":         reqIP.String(),
+				"registered": registered,
+			}).Notice("Got a DECLINE for IP not in a scope")
+			return nil
+		}
+		network.Lock()
+		defer network.Unlock()
 	}
-	network.Lock()
-	defer network.Unlock()
 
 	registered = registered && !network.ignoreRegistration
 
-	lease, _ := network.getLeaseByIP(reqIP, registered)
-	if lease == nil || !bytes.Equal(lease.MAC, p.CHAddr()) {
-		leaseMac := ""
-		if lease != nil {
-			leaseMac = lease.MAC.String()
-		}
-
+	lease, _ := network.getLeaseByMAC(p.CHAddr(), registered)
+	if lease == nil {
 		h.c.Log.WithFields(verbose.Fields{
-			"declined_ip": reqIP.String(),
-			"mac":         p.CHAddr().String(),
-			"lease_mac":   leaseMac,
-			"network":     network.name,
-			"registered":  registered,
+			"network":    network.name,
+			"registered": registered,
+			"mac":        p.CHAddr().String(),
 		}).Notice("Client tried to decline lease not belonging to them")
 		return nil
 	}
