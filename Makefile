@@ -8,6 +8,8 @@ CGO_ENABLED := 0
 
 PWD := $(shell pwd)
 GOBIN := $(PWD)/bin
+UID := $(shell id -u)
+GID := $(shell id -g)
 
 ifeq ($(shell uname -o), Cygwin)
 PWD := $(shell cygpath -w -a `pwd`)
@@ -28,12 +30,11 @@ build:
 		--rm \
 		-v "$(PWD)":/usr/src/myapp \
 		-w /usr/src/myapp \
-		--user 1000:1000 \
 		-e XDG_CACHE_HOME=/tmp/.cache \
 		-e "BUILDER=$(BUILDER)" \
 		-e "VERSION=$(VERSION)" \
 		-e "BUILDTIME=$(BUILDTIME)" \
-		golang:1.20 \
+		docker.io/golang:1.20-bullseye \
 		make build-cmd
 
 build-tools:
@@ -41,12 +42,11 @@ build-tools:
 		--rm \
 		-v "$(PWD)":/usr/src/myapp \
 		-w /usr/src/myapp \
-		--user 1000:1000 \
 		-e XDG_CACHE_HOME=/tmp/.cache \
 		-e "BUILDER=$(BUILDER)" \
 		-e "VERSION=$(VERSION)" \
 		-e "BUILDTIME=$(BUILDTIME)" \
-		golang:1.20 \
+		docker.io/golang:1.20-bullseye \
 		make build-cli build-db-edit build-db-migrate
 
 build-cmd:
