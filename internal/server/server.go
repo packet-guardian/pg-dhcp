@@ -9,6 +9,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"net"
 	"runtime"
@@ -168,7 +169,6 @@ func isDeviceRegistered(d *models.Device) bool {
 	return d.Registered && !d.Blacklisted
 }
 
-// Handle DHCP DISCOVER messages
 func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 
@@ -206,6 +206,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 				"network":    network.name,
 				"registered": registered,
 				"mac":        p.CHAddr().String(),
+				"xid":        p.XidStr(),
 			}).Alert("No free leases available in network")
 			return nil
 		}
@@ -213,6 +214,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 
 	// Set temporary offered flag and end time
 	lease.Offered = true
+	lease.IsAbandoned = false
 	lease.Start = time.Now()
 	lease.End = time.Now().Add(time.Duration(30) * time.Second) // Set a short end time so it's not offered to other clients
 	lease.MAC = make([]byte, len(p.CHAddr()))
@@ -236,6 +238,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 		"action":     "offer",
 		"took":       time.Since(start).String(),
 		"relay_ip":   gatewayIP,
+		"xid":        p.XidStr(),
 	}).Info("Offering lease to client")
 
 	// Send an offer
@@ -249,7 +252,6 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 	)
 }
 
-// Handle DHCP REQUEST messages
 func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(c.global.serverIdentifier) {
 		return nil // Message not for this dhcp server
@@ -262,7 +264,16 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 	}
 
 	if len(reqIP) != 4 || reqIP.Equal(net.IPv4zero) {
+		packetJson, _ := json.Marshal(p)
+		h.c.Log.WithFields(verbose.Fields{
+			"ip":     reqIP.String(),
+			"mac":    p.CHAddr().String(),
+			"action": "none",
+			"packet": string(packetJson),
+			"xid":    p.XidStr(),
+		}).Info("Received request with invalid reqIP")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
+		// return nil
 	}
 
 	var network *network
@@ -277,6 +288,13 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		network, ok = h.gatewayCache[p.GIAddr().String()]
 		h.gatewayMutex.Unlock()
 		if !ok {
+			h.c.Log.WithFields(verbose.Fields{
+				"ip":       reqIP.String(),
+				"mac":      p.CHAddr().String(),
+				"relay_ip": p.GIAddr().String(),
+				"action":   "nack",
+				"xid":      p.XidStr(),
+			}).Info("Gateway not seen before")
 			// That gateway hasn't been seen before, it needs to go through DISCOVER
 			return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 		}
@@ -288,6 +306,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		h.c.Log.WithFields(verbose.Fields{
 			"ip":         reqIP.String(),
 			"registered": registered,
+			"action":     "nack",
+			"xid":        p.XidStr(),
 		}).Info("Got a REQUEST for IP not in a scope")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
@@ -303,6 +323,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 			"mac":        p.CHAddr().String(),
 			"network":    network.name,
 			"registered": registered,
+			"action":     "nack",
+			"xid":        p.XidStr(),
 		}).Info("Client tried to request a lease that doesn't exist")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
@@ -314,6 +336,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 			"lease_mac":  lease.MAC.String(),
 			"network":    network.name,
 			"registered": registered,
+			"action":     "nack",
+			"xid":        p.XidStr(),
 		}).Info("Client tried to request lease not belonging to them")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
@@ -324,6 +348,8 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 			"mac":        p.CHAddr().String(),
 			"network":    network.name,
 			"registered": registered,
+			"action":     "nack",
+			"xid":        p.XidStr(),
 		}).Info("Client tried to request an abandoned lease")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
@@ -339,8 +365,10 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 	}
 	if err := h.c.Store.PutLease(lease); err != nil {
 		h.c.Log.WithFields(verbose.Fields{
-			"mac":   p.CHAddr().String(),
-			"error": err,
+			"mac":    p.CHAddr().String(),
+			"error":  err,
+			"action": "nack",
+			"xid":    p.XidStr(),
 		}).Error("Error saving lease")
 		return dhcp4.ReplyPacket(p, dhcp4.NAK, c.global.serverIdentifier, nil, 0, nil)
 	}
@@ -364,6 +392,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		"action":      "request_ack",
 		"blacklisted": device.Blacklisted,
 		"took":        time.Since(start).String(),
+		"xid":         p.XidStr(),
 	}).Info("Acknowledging request")
 
 	if device.Registered {
@@ -384,7 +413,6 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 	)
 }
 
-// Handle DHCP RELEASE messages
 func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 	reqIP := p.CIAddr()
@@ -399,6 +427,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 		h.c.Log.WithFields(verbose.Fields{
 			"ip":         reqIP.String(),
 			"registered": registered,
+			"xid":        p.XidStr(),
 		}).Notice("Got a RELEASE for IP not in a scope")
 		return nil
 	}
@@ -420,6 +449,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 			"lease_mac":  leaseMac,
 			"network":    network.name,
 			"registered": registered,
+			"xid":        p.XidStr(),
 		}).Notice("Client tried to release lease not belonging to them")
 		return nil
 	}
@@ -432,7 +462,8 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 		"registered": device.Registered,
 		"action":     "release",
 		"took":       time.Since(start).String(),
-	}).Info("Releasing lease")
+		"xid":        p.XidStr(),
+	}).Info("Releasing lease (DRY RUN)")
 
 	lease.Start = time.Unix(1, 0)
 	lease.End = time.Unix(1, 0)
@@ -445,10 +476,6 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 	return nil
 }
 
-// Handle DHCP DECLINE messages
-// TODO: Decline would never work because the ciaddr field will always be 0
-// for a properly formed DECLINE message. Also, a DECLINE has nothing to do
-// with a client being registered or not.
 func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 	reqIP := p.CIAddr()
@@ -482,6 +509,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *m
 			h.c.Log.WithFields(verbose.Fields{
 				"ip":         reqIP.String(),
 				"registered": registered,
+				"xid":        p.XidStr(),
 			}).Notice("Got a DECLINE for IP not in a scope")
 			return nil
 		}
@@ -497,6 +525,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *m
 			"network":    network.name,
 			"registered": registered,
 			"mac":        p.CHAddr().String(),
+			"xid":        p.XidStr(),
 		}).Notice("Client tried to decline lease not belonging to them")
 		return nil
 	}
@@ -509,6 +538,7 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *m
 		"registered": device.Registered,
 		"action":     "decline",
 		"took":       time.Since(start).String(),
+		"xid":        p.XidStr(),
 	}).Notice("Abandoned lease")
 
 	lease.IsAbandoned = true
