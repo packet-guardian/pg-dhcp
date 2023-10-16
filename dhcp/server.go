@@ -7,15 +7,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"sync"
-)
-
-var (
-	bufferPool = sync.Pool{
-		New: func() interface{} {
-			return make([]byte, 1500)
-		},
-	}
 )
 
 // A Handler takes a DHCP request packet and generates a response to the client
@@ -55,7 +46,7 @@ func Serve(conn ServeConn, handler Handler, workers int) (err error) {
 	taskQueue := startWorkers(workers, conn, handler)
 
 	for {
-		buffer := bufferPool.Get().([]byte)
+		buffer := make([]byte, 1500)
 		n, addr, err := conn.ReadFrom(buffer)
 		if err != nil {
 			close(taskQueue)
@@ -73,7 +64,6 @@ func Serve(conn ServeConn, handler Handler, workers int) (err error) {
 		case taskQueue <- job{p: req, from: addr}:
 		default:
 			fmt.Println("Task queue full")
-			bufferPool.Put(buffer)
 		}
 	}
 }
@@ -135,7 +125,6 @@ func startWorkers(num int, conn ServeConn, handler Handler) chan job {
 func worker(conn ServeConn, handler Handler, tasks <-chan job) {
 	for j := range tasks {
 		process(conn, j.p, handler, j.from)
-		bufferPool.Put([]byte(j.p))
 	}
 	fmt.Println("Worker stopping")
 }
