@@ -8,7 +8,7 @@ import (
 
 	"github.com/packet-guardian/pg-dhcp/models"
 
-	bolt "github.com/coreos/bbolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 var (

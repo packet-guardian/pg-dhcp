@@ -4,7 +4,7 @@
 
 package server
 
-import "github.com/packet-guardian/pg-dhcp/dhcp"
+import dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 
 type multiple int // How many of a token type are allowed
 type length int   // The number of bytes an option can be in length
@@ -28,10 +28,12 @@ var (
 	singleIPSchema = &optionSchema{token: IP_ADDRESS, multi: 1, maxlen: 4, multipleOf: 4}
 	multiIPSchema  = &optionSchema{token: IP_ADDRESS, multi: oneOrMore, maxlen: unlimited, multipleOf: 4}
 	stringSchema   = &optionSchema{token: STRING, multi: 1, maxlen: unlimited, multipleOf: 1}
-	int8Schema     = &optionSchema{token: NUMBER, multi: 1, maxlen: 1, multipleOf: 1}
-	int16Schema    = &optionSchema{token: NUMBER, multi: 1, maxlen: 2, multipleOf: 2}
-	int32Schema    = &optionSchema{token: NUMBER, multi: 1, maxlen: 4, multipleOf: 4}
-	anySchema      = &optionSchema{token: ANY, multi: oneOrMore, maxlen: unlimited, multipleOf: 1}
+
+	int8Schema  = &optionSchema{token: NUMBER, multi: 1, maxlen: 1, multipleOf: 1}
+	int16Schema = &optionSchema{token: NUMBER, multi: 1, maxlen: 2, multipleOf: 2}
+	int32Schema = &optionSchema{token: NUMBER, multi: 1, maxlen: 4, multipleOf: 4}
+
+	anySchema = &optionSchema{token: ANY, multi: oneOrMore, maxlen: unlimited, multipleOf: 1}
 )
 
 type option struct {

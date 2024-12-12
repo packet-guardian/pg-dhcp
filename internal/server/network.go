@@ -24,7 +24,6 @@ type network struct {
 	unregisteredSettings *settings
 	unregOptionsCached   bool
 	subnets              []*subnet
-	local                bool
 	ignoreRegistration   bool
 }
 

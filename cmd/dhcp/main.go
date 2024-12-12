@@ -92,6 +92,7 @@ func main() {
 	}
 
 	e.Log = config.NewLogger(e.Config, "dhcp")
+	e.Log.WithField("version", version).Info("Packet Guardian DHCP")
 	e.Log.WithField("path", configFile).Debug("Configuration loaded")
 
 	if !utils.FileExists(e.Config.Server.NetworksFile) {

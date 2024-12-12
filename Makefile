@@ -21,7 +21,7 @@ LDFLAGS := -X 'main.version=$(VERSION)' \
 			-X 'main.builder=$(BUILDER)' \
 			-X 'main.goversion=$(GOVERSION)'
 
-.PHONY: all doc fmt alltests test coverage benchmark lint vet dhcp management dist clean docker build build-cmd build-tools build-cli build-db-edit build-db-migrate
+.PHONY: all docker-safe-dir doc fmt alltests test coverage benchmark lint vet dhcp management dist clean docker build build-cmd build-tools build-cli build-db-edit build-db-migrate
 
 all: test build
 
@@ -34,8 +34,8 @@ build:
 		-e "BUILDER=$(BUILDER)" \
 		-e "VERSION=$(VERSION)" \
 		-e "BUILDTIME=$(BUILDTIME)" \
-		docker.io/golang:1.20-bullseye \
-		make build-cmd
+		docker.io/golang:1.23-bullseye \
+		make docker-safe-dir build-cmd
 
 build-tools:
 	docker run \
@@ -46,8 +46,8 @@ build-tools:
 		-e "BUILDER=$(BUILDER)" \
 		-e "VERSION=$(VERSION)" \
 		-e "BUILDTIME=$(BUILDTIME)" \
-		docker.io/golang:1.20-bullseye \
-		make build-cli build-db-edit build-db-migrate
+		docker.io/golang:1.23-bullseye \
+		make docker-safe-dir build-cli build-db-edit build-db-migrate
 
 build-cmd:
 	go build -o bin/dhcp -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/dhcp/...
@@ -62,6 +62,9 @@ build-db-migrate:
 	go build -o bin/dhcp-migrate -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/db-migrate/...
 
 # development tasks
+docker-safe-dir:
+	git config --global --add safe.directory /usr/src/myapp
+
 doc:
 	@godoc -http=:6060 -index
 

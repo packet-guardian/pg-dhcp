@@ -133,10 +133,8 @@ mainLoop:
 }
 
 func (p *parser) parseNetwork() error {
-	local := false
 	nameToken := p.l.next()
-	if nameToken.token == LOCAL {
-		local = true
+	if nameToken.token == LOCAL { // local keyword is deprecated
 		nameToken = p.l.next()
 	}
 	if nameToken.token != STRING {
@@ -151,7 +149,6 @@ func (p *parser) parseNetwork() error {
 		return fmt.Errorf("Network %s already declared, line %d", name, nameToken.line)
 	}
 	netBlock := newNetwork(name)
-	netBlock.local = local
 	mode := 0 // 0 = root, 1 = registered, 2 = unregistered
 mainLoop:
 	for {
