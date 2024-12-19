@@ -57,13 +57,13 @@ func Serve(conn net.PacketConn, handler Handler, workers int) (err error) {
 		return err
 	}
 
-	ifaceAddrs := make([]net.IP, len(ifaces))
+	ifaceAddrs := make(map[int]net.IP, len(ifaces))
 	for _, iface := range ifaces {
 		addrs, _ := iface.Addrs()
 		for _, addr := range addrs {
 			host, _, _ := net.ParseCIDR(addr.String())
 			if host.To4() != nil {
-				ifaceAddrs[iface.Index-1] = host
+				ifaceAddrs[iface.Index] = host
 				break
 			}
 		}
@@ -85,7 +85,7 @@ func Serve(conn net.PacketConn, handler Handler, workers int) (err error) {
 		}
 
 		select {
-		case taskQueue <- job{packet: req, dst: ifaceAddrs[cm.IfIndex-1], from: addr}:
+		case taskQueue <- job{packet: req, dst: ifaceAddrs[cm.IfIndex], from: addr}:
 		default:
 			fmt.Println("Task queue full")
 		}
