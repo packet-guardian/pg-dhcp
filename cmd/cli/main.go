@@ -66,6 +66,8 @@ func main() {
 		getMemStatus(client)
 	case "devices":
 		devicesCmd(client, args)
+	case "help":
+		helpCmd()
 	default:
 		fmt.Printf("\"%s\" is not a command\n", command)
 		os.Exit(1)
@@ -80,6 +82,36 @@ Built:       %s
 Compiled by: %s
 Go version:  %s
 `, version, buildTime, builder, goversion)
+}
+
+func helpCmd() {
+	fmt.Println(`PG DHCP Management Client
+Usage: pg-dhcp [options] command [args]
+Options:
+  -h, --host <host:port>   DHCP management host address (default: localhost:8677)
+  -j, --json               Output JSON
+  -v, --version            Display version information
+
+Commands:
+  leases <options>       Show leases
+  networks               Show network names
+  pools                  Show pool statistics
+  memory                 Show memory statistics
+  devices <options>      Show device information
+  help                   Show this help message
+
+Examples:
+  pg-dhcp leases -n <network>       Show all leases in a network
+  pg-dhcp leases -ip <ip>           Show lease information for a specific IP
+  pg-dhcp networks                  Show all network names
+  pg-dhcp pools                     Show pool statistics
+  pg-dhcp memory                    Show memory statistics
+  pg-dhcp devices show <mac>        Show device information for a specific MAC address
+  pg-dhcp devices register <mac>    Register a device
+  pg-dhcp devices unregister <mac>  Unregister a device
+  pg-dhcp devices block <mac>       Block a device
+  pg-dhcp devices unblock <mac>     Unblock a device
+  pg-dhcp devices delete <mac>      Delete a device`)
 }
 
 var multLleaseTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 -07:00"}}
@@ -229,7 +261,7 @@ func getMemStatus(client rpcclient.Client) {
 
 func devicesCmd(client rpcclient.Client, args []string) {
 	if len(args) != 2 {
-		fmt.Println("Usage: devices [show|register|unregister|blacklist|unblacklist|delete] MAC")
+		fmt.Println("Usage: devices [show|register|unregister|block|unblock|delete] MAC")
 		os.Exit(1)
 	}
 
@@ -247,14 +279,14 @@ func devicesCmd(client rpcclient.Client, args []string) {
 		devicesCmdRegister(client, mac)
 	case "unregister":
 		devicesCmdUnregister(client, mac)
-	case "blacklist":
+	case "block":
 		devicesCmdBlacklist(client, mac)
-	case "unblacklist":
+	case "unblock":
 		devicesCmdUnblacklist(client, mac)
 	case "delete":
 		devicesCmdDelete(client, mac)
 	default:
-		fmt.Println("Usage: devices [show|register|unregister|blacklist|unblacklist|delete] MAC")
+		fmt.Println("Usage: devices [show|register|unregister|block|unblock|delete] MAC")
 		os.Exit(1)
 	}
 }
@@ -262,7 +294,7 @@ func devicesCmd(client rpcclient.Client, args []string) {
 var singleDeviceTemplate = template.Must(template.New("").Parse(`{{with .Device}}
 	MAC:         {{.MAC.String}}
 	Registered:  {{.Registered}}
-	Blacklisted: {{.Blacklisted}}
+	Blocked:     {{.Blacklisted}}
 {{end}}
 `))
 
