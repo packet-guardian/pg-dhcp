@@ -7,26 +7,40 @@ import (
 	"log"
 	"net"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/rpcclient"
+	"github.com/packet-guardian/pg-dhcp/stats"
 )
 
 var (
 	serverAddress string
 	jsonOut       bool
+	verFlag       bool
+
+	version   = ""
+	buildTime = ""
+	builder   = ""
+	goversion = ""
 )
 
 func init() {
 	flag.StringVar(&serverAddress, "h", "localhost:8677", "DHCP managment host address")
 	flag.BoolVar(&jsonOut, "json", false, "Output JSON")
+	flag.BoolVar(&verFlag, "v", verFlag, "Display version information")
 }
 
 func main() {
 	flag.Parse()
+
+	if verFlag {
+		displayVersionInfo()
+		return
+	}
 
 	fmt.Fprintf(os.Stderr, "Connecting to %s\n", serverAddress)
 	client, err := rpcclient.Connect("tcp", serverAddress)
@@ -56,6 +70,16 @@ func main() {
 		fmt.Printf("\"%s\" is not a command\n", command)
 		os.Exit(1)
 	}
+}
+
+func displayVersionInfo() {
+	fmt.Printf(`PG Dhcp - (C) 2016 The Packet Guardian Authors
+
+Version:     %s
+Built:       %s
+Compiled by: %s
+Go version:  %s
+`, version, buildTime, builder, goversion)
 }
 
 var multLleaseTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 -07:00"}}
@@ -166,18 +190,22 @@ LastGC:       {{.LastGC}}
 `))
 
 func getPoolStats(client rpcclient.Client) {
-	stats, err := client.Server().GetPoolStats()
+	poolStats, err := client.Server().GetPoolStats()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	slices.SortFunc(poolStats, func(a, b *stats.PoolStat) int {
+		return strings.Compare(strings.ToLower(a.NetworkName), strings.ToLower(b.NetworkName))
+	})
+
 	if jsonOut {
-		b, _ := json.Marshal(stats)
+		b, _ := json.Marshal(poolStats)
 		fmt.Println(string(b))
 	} else {
 		poolStatsTemplate.Execute(os.Stdout, map[string]interface{}{
 			"Now":   time.Now(),
-			"Pools": stats,
+			"Pools": poolStats,
 		})
 	}
 }
