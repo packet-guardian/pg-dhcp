@@ -145,15 +145,7 @@ func (s *PGStore) deviceBlacklisted(mac net.HardwareAddr) bool {
 }
 
 func (s *PGStore) PutDevice(d *models.Device) error {
-	if err := s.prepare(); err != nil {
-		return err
-	}
-
-	_, err := s.putDeviceStmt.Exec(
-		d.LastSeen.Unix(),
-		d.MAC.String(),
-	)
-	return err
+	return nil // We don't manage the devices, the management application does.
 }
 
 func (s *PGStore) DeleteDevice(d *models.Device) error {
