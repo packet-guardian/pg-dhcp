@@ -23,7 +23,7 @@ LDFLAGS := -X 'main.version=$(VERSION)' \
 
 .PHONY: all docker-safe-dir doc fmt alltests test coverage benchmark lint vet dhcp management dist clean docker build build-cmd build-tools build-cli build-db-edit build-db-migrate
 
-all: test build
+all: test build build-tools
 
 build:
 	docker run \
