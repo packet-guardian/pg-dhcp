@@ -13,7 +13,7 @@ import (
 	"github.com/packet-guardian/pg-dhcp/internal/config"
 	"github.com/packet-guardian/pg-dhcp/internal/server"
 	"github.com/packet-guardian/pg-dhcp/internal/utils"
-	management "github.com/packet-guardian/pg-dhcp/managment"
+	"github.com/packet-guardian/pg-dhcp/management"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
