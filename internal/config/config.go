@@ -2,9 +2,10 @@ package config
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"os"
 	"runtime"
+	"slices"
 	"time"
 
 	"github.com/naoina/toml"
@@ -18,6 +19,7 @@ type Config struct {
 	Leases     *LeasesConfig
 	Server     *ServerConfig
 	Management *ManagementConfig
+	Cluster    *ClusterConfig
 }
 
 type LoggingConfig struct {
@@ -54,6 +56,14 @@ type ServerConfig struct {
 type ManagementConfig struct {
 	Address    string
 	Port       int
+	AllowedIPs []string
+}
+
+type ClusterConfig struct {
+	Enabled    bool
+	Address    string
+	Port       int
+	Secret     string
 	AllowedIPs []string
 }
 
@@ -95,15 +105,18 @@ func NewConfig(configFile string) (conf *Config, err error) {
 		return nil, err
 	}
 	defer f.Close()
-	buf, err := ioutil.ReadAll(f)
+
+	buf, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
+
 	var con Config
 	if err := toml.Unmarshal(buf, &con); err != nil {
 		return nil, err
 	}
 	con.sourceFile = configFile
+
 	return setSensibleDefaults(&con)
 }
 
@@ -128,6 +141,9 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 	}
 	if c.Management == nil {
 		c.Management = &ManagementConfig{}
+	}
+	if c.Cluster == nil {
+		c.Cluster = &ClusterConfig{}
 	}
 
 	// Logging
@@ -162,10 +178,23 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 	c.Management.Address = setStringOrDefault(c.Management.Address, "0.0.0.0")
 	c.Management.Port = setIntOrDefault(c.Management.Port, 8677)
 	if c.Management.AllowedIPs != nil {
-		if utils.StringSliceContains(c.Management.AllowedIPs, "0.0.0.0") {
+		if slices.Contains(c.Management.AllowedIPs, "0.0.0.0") {
 			// 0.0.0.0 matches every address, setting this to nil is as if it was never set.
 			c.Management.AllowedIPs = nil
 		}
+	}
+
+	// Cluster
+	if c.Cluster.Enabled {
+		if c.Cluster.Address == "" {
+			return nil, errors.New("Cluster address is required when cluster is enabled")
+		}
+
+		if c.Cluster.Secret == "" {
+			return nil, errors.New("Cluster secret is required when cluster is enabled")
+		}
+
+		c.Cluster.Port = setIntOrDefault(c.Cluster.Port, 8678)
 	}
 
 	return c, nil

@@ -5,6 +5,7 @@ import (
 
 	"github.com/lfkeitel/verbose/v5"
 	"github.com/packet-guardian/pg-dhcp/internal/server"
+	"github.com/packet-guardian/pg-dhcp/internal/server/sconfig"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
@@ -20,18 +21,19 @@ func setUpTest(t fatalLogger) (*server.Handler, store.Store) {
 	}
 
 	// Setup Configuration
-	c, err := server.ParseFile("../internal/server/testdata/testConfig.conf")
+	c, err := sconfig.ParseFile("../internal/server/testdata/testConfig.conf")
 	if err != nil {
 		t.Fatalf("Test config failed parsing: %v", err)
 	}
 
 	sc := &server.ServerConfig{
-		Env:   server.EnvTesting,
-		Log:   verbose.New(),
-		Store: db,
+		Env:      server.EnvTesting,
+		Log:      verbose.New(),
+		Store:    db,
+		Networks: c,
 	}
 
-	return server.NewDHCPServer(c, sc), db
+	return server.NewDHCPServer(sc), db
 }
 
 func setUpStore() (store.Store, error) {

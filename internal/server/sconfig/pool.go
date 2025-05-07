@@ -2,37 +2,37 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package server
+package sconfig
 
 import (
 	"net"
 	"time"
 
-	"github.com/packet-guardian/pg-dhcp/dhcp"
+	dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 	"github.com/packet-guardian/pg-dhcp/models"
 )
 
-type pool struct {
-	rangeStart    net.IP
-	rangeEnd      net.IP
-	settings      *settings
+type Pool struct {
+	RangeStart    net.IP
+	RangeEnd      net.IP
+	settings      *Settings
 	optionsCached bool
-	leases        map[string]*models.Lease // IP -> Lease
-	subnet        *subnet
+	Leases        map[string]*models.Lease // IP -> Lease
+	subnet        *Subnet
 	nextFreeStart int
 	ipsInPool     int
 }
 
-func newPool() *pool {
-	return &pool{
+func newPool() *Pool {
+	return &Pool{
 		settings: newSettingsBlock(),
-		leases:   make(map[string]*models.Lease),
+		Leases:   make(map[string]*models.Lease),
 	}
 }
 
-func (p *pool) getCountOfIPs() int {
+func (p *Pool) GetCountOfIPs() int {
 	if p.ipsInPool == 0 {
-		p.ipsInPool = dhcp4.IPRange(p.rangeStart, p.rangeEnd)
+		p.ipsInPool = dhcp4.IPRange(p.RangeStart, p.RangeEnd)
 	}
 	return p.ipsInPool
 }
@@ -41,54 +41,54 @@ func (p *pool) getCountOfIPs() int {
 // If req is 0 then the default lease time is returned. Otherwise it will return the lower of
 // req and the maximum lease time. If the pool does not have an explicitly set duration for either,
 // it will get the duration from its subnet.
-func (p *pool) getLeaseTime(req time.Duration, registered bool) time.Duration {
+func (p *Pool) GetLeaseTime(req time.Duration, registered bool) time.Duration {
 	if req == 0 {
-		if p.settings.defaultLeaseTime > 0 {
-			return p.settings.defaultLeaseTime
+		if p.settings.DefaultLeaseTime > 0 {
+			return p.settings.DefaultLeaseTime
 		}
 		// Save the result for later
-		p.settings.defaultLeaseTime = p.subnet.getLeaseTime(req, registered)
-		return p.settings.defaultLeaseTime
+		p.settings.DefaultLeaseTime = p.subnet.getLeaseTime(req, registered)
+		return p.settings.DefaultLeaseTime
 	}
 
-	if p.settings.maxLeaseTime > 0 {
-		if req < p.settings.maxLeaseTime {
+	if p.settings.MaxLeaseTime > 0 {
+		if req < p.settings.MaxLeaseTime {
 			return req
 		}
-		return p.settings.maxLeaseTime
+		return p.settings.MaxLeaseTime
 	}
 
 	// Save the result for later
-	p.settings.maxLeaseTime = p.subnet.getLeaseTime(req, registered)
+	p.settings.MaxLeaseTime = p.subnet.getLeaseTime(req, registered)
 
-	if req <= p.settings.maxLeaseTime {
+	if req <= p.settings.MaxLeaseTime {
 		return req
 	}
-	return p.settings.maxLeaseTime
+	return p.settings.MaxLeaseTime
 }
 
-func (p *pool) getOptions(registered bool) dhcp4.Options {
+func (p *Pool) GetOptions(registered bool) dhcp4.Options {
 	if p.optionsCached {
-		return p.settings.options
+		return p.settings.Options
 	}
 
 	higher := p.subnet.getOptions(registered)
 	for c, v := range higher {
-		if _, ok := p.settings.options[c]; !ok {
-			p.settings.options[c] = v
+		if _, ok := p.settings.Options[c]; !ok {
+			p.settings.Options[c] = v
 		}
 	}
 	p.optionsCached = true
-	return p.settings.options
+	return p.settings.Options
 }
 
-func (p *pool) getFreeLease(s *ServerConfig) *models.Lease {
+func (p *Pool) GetFreeLease() *models.Lease {
 	now := time.Now()
 
-	regFreeTime := p.subnet.network.global.registeredSettings.freeLeaseAfter
-	unRegFreeTime := p.subnet.network.global.unregisteredSettings.freeLeaseAfter
+	regFreeTime := p.subnet.network.global.RegisteredSettings.FreeLeaseAfter
+	unRegFreeTime := p.subnet.network.global.UnregisteredSettings.FreeLeaseAfter
 	// Find a candidate from the already used leases
-	for _, l := range p.leases {
+	for _, l := range p.Leases {
 		if l.IsAbandoned { // IP in use by a device we don't know about
 			continue
 		}
@@ -108,13 +108,13 @@ func (p *pool) getFreeLease(s *ServerConfig) *models.Lease {
 	}
 
 	// No candidates, find the next available lease
-	for i := p.nextFreeStart; i < p.getCountOfIPs(); i++ {
-		next := dhcp4.IPAdd(p.rangeStart, i)
+	for i := p.nextFreeStart; i < p.GetCountOfIPs(); i++ {
+		next := dhcp4.IPAdd(p.RangeStart, i)
 		p.nextFreeStart = i + 1
 
 		// Check if IP has a lease
 		// Sanity check
-		_, ok := p.leases[next.String()]
+		_, ok := p.Leases[next.String()]
 		if ok {
 			continue
 		}
@@ -123,9 +123,9 @@ func (p *pool) getFreeLease(s *ServerConfig) *models.Lease {
 		// and guarenteed to not be anywhere else yet.
 		l := models.NewLease()
 		l.IP = next
-		l.Network = p.subnet.network.name
-		l.Registered = !p.subnet.allowUnknown
-		p.leases[next.String()] = l
+		l.Network = p.subnet.network.Name
+		l.Registered = !p.subnet.AllowUnknown
+		p.Leases[next.String()] = l
 		return l
 	}
 
@@ -133,13 +133,13 @@ func (p *pool) getFreeLease(s *ServerConfig) *models.Lease {
 	return nil
 }
 
-func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *models.Lease {
+func (p *Pool) getFreeLeaseDesperate() *models.Lease {
 	now := time.Now()
 
 	// No free leases, bring out the big guns
 	// Find the oldest expired lease
 	var longestExpiredLease *models.Lease
-	for _, l := range p.leases {
+	for _, l := range p.Leases {
 		if l.End.After(now) { // Skip active leases
 			continue
 		}
@@ -160,7 +160,7 @@ func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *models.Lease {
 
 	// Now we're getting desperate
 	// Check abandoned leases for availability
-	for _, l := range p.leases {
+	for _, l := range p.Leases {
 		if l.IsAbandoned { // Skip non-abandoned leases
 			l.IsAbandoned = false
 			return l
@@ -169,6 +169,6 @@ func (p *pool) getFreeLeaseDesperate(s *ServerConfig) *models.Lease {
 	return nil
 }
 
-func (p *pool) includes(ip net.IP) bool {
-	return dhcp4.IPInRange(p.rangeStart, p.rangeEnd, ip)
+func (p *Pool) Includes(ip net.IP) bool {
+	return dhcp4.IPInRange(p.RangeStart, p.RangeEnd, ip)
 }

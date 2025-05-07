@@ -6,6 +6,7 @@ package server
 
 import (
 	"github.com/lfkeitel/verbose/v5"
+	"github.com/packet-guardian/pg-dhcp/internal/server/sconfig"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 
@@ -23,6 +24,7 @@ type ServerConfig struct {
 	Store          store.Store
 	BlockBlacklist bool
 	Workers        int
+	Networks       *sconfig.Config
 }
 
 func (s *ServerConfig) IsTesting() bool {

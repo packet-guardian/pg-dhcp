@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package server
+package sconfig
 
-type host struct {
-	settings *settings
+type Host struct {
+	Settings *Settings
 }
 
-func newHost() *host {
-	return &host{
-		settings: newSettingsBlock(),
+func newHost() *Host {
+	return &Host{
+		Settings: newSettingsBlock(),
 	}
 }

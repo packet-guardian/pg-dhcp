@@ -1,4 +1,4 @@
-package server
+package sconfig
 
 import (
 	"testing"
@@ -6,13 +6,13 @@ import (
 
 func TestLeaseTimes(t *testing.T) {
 	g := newGlobal()
-	g.settings.defaultLeaseTime = 360
-	g.unregisteredSettings.defaultLeaseTime = 380
-	g.registeredSettings.defaultLeaseTime = 400
+	g.settings.DefaultLeaseTime = 360
+	g.UnregisteredSettings.DefaultLeaseTime = 380
+	g.RegisteredSettings.DefaultLeaseTime = 400
 
-	g.settings.maxLeaseTime = 400
-	g.unregisteredSettings.maxLeaseTime = 410
-	g.registeredSettings.maxLeaseTime = 450
+	g.settings.MaxLeaseTime = 400
+	g.UnregisteredSettings.MaxLeaseTime = 410
+	g.RegisteredSettings.MaxLeaseTime = 450
 
 	// Test default lease time
 	if d := g.getLeaseTime(0, true); d != 400 {
@@ -22,8 +22,8 @@ func TestLeaseTimes(t *testing.T) {
 		t.Errorf("Expected 380 got %d", d)
 	}
 
-	g.registeredSettings.defaultLeaseTime = 0
-	g.unregisteredSettings.defaultLeaseTime = 0
+	g.RegisteredSettings.DefaultLeaseTime = 0
+	g.UnregisteredSettings.DefaultLeaseTime = 0
 	if d := g.getLeaseTime(0, true); d != 360 {
 		t.Errorf("Expected 360 got %d", d)
 	}
@@ -39,8 +39,8 @@ func TestLeaseTimes(t *testing.T) {
 		t.Errorf("Expected 410 got %d", d)
 	}
 
-	g.registeredSettings.maxLeaseTime = 0
-	g.unregisteredSettings.maxLeaseTime = 0
+	g.RegisteredSettings.MaxLeaseTime = 0
+	g.UnregisteredSettings.MaxLeaseTime = 0
 	if d := g.getLeaseTime(500, true); d != 400 {
 		t.Errorf("Expected 400 got %d", d)
 	}
@@ -49,8 +49,8 @@ func TestLeaseTimes(t *testing.T) {
 	}
 
 	// Test max lease time where client asks for less
-	g.unregisteredSettings.maxLeaseTime = 410
-	g.registeredSettings.maxLeaseTime = 450
+	g.UnregisteredSettings.MaxLeaseTime = 410
+	g.RegisteredSettings.MaxLeaseTime = 450
 	if d := g.getLeaseTime(350, true); d != 350 {
 		t.Errorf("Expected 350 got %d", d)
 	}
@@ -58,8 +58,8 @@ func TestLeaseTimes(t *testing.T) {
 		t.Errorf("Expected 350 got %d", d)
 	}
 
-	g.registeredSettings.maxLeaseTime = 0
-	g.unregisteredSettings.maxLeaseTime = 0
+	g.RegisteredSettings.MaxLeaseTime = 0
+	g.UnregisteredSettings.MaxLeaseTime = 0
 	if d := g.getLeaseTime(350, true); d != 350 {
 		t.Errorf("Expected 350 got %d", d)
 	}

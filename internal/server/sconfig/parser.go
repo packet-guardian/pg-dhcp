@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package server
+package sconfig
 
 import (
 	"bufio"
@@ -82,8 +82,8 @@ mainLoop:
 		}
 	}
 
-	for _, n := range p.c.networks {
-		n.global = p.c.global
+	for _, n := range p.c.Networks {
+		n.global = p.c.Global
 	}
 	return p.c, nil
 }
@@ -102,25 +102,25 @@ mainLoop:
 			if addr.token != IP_ADDRESS {
 				return fmt.Errorf("Expected IP address on line %d", addr.line)
 			}
-			p.c.global.serverIdentifier = addr.value.(net.IP)
+			p.c.Global.ServerIdentifier = addr.value.(net.IP)
 		case REGISTERED:
 			s, err := p.parseSettingsBlock()
 			if err != nil {
 				return err
 			}
-			p.c.global.registeredSettings = s
+			p.c.Global.RegisteredSettings = s
 			p.l.next() // Consume END from block
 		case UNREGISTERED:
 			s, err := p.parseSettingsBlock()
 			if err != nil {
 				return err
 			}
-			p.c.global.unregisteredSettings = s
+			p.c.Global.UnregisteredSettings = s
 			p.l.next() // Consume END from block
 		default:
 			if tok.token.isSetting() {
 				p.l.unread()
-				err := p.parseSetting(p.c.global.settings)
+				err := p.parseSetting(p.c.Global.settings)
 				if err != nil {
 					return err
 				}
@@ -145,7 +145,7 @@ func (p *parser) parseNetwork() error {
 		return fmt.Errorf("Network name is too long on line %d", nameToken.line)
 	}
 
-	if _, exists := p.c.networks[name]; exists {
+	if _, exists := p.c.Networks[name]; exists {
 		return fmt.Errorf("Network %s already declared, line %d", name, nameToken.line)
 	}
 	netBlock := newNetwork(name)
@@ -159,7 +159,7 @@ mainLoop:
 		case COMMENT, EOL:
 			continue
 		case IGNORE_REGISTRATION:
-			netBlock.ignoreRegistration = true
+			netBlock.IgnoreRegistration = true
 		case SUBNET:
 			shortSyntax := false
 			if mode == 0 {
@@ -172,10 +172,10 @@ mainLoop:
 			}
 			if mode == 2 { // Unregistered block
 				// This will also set shortmode subnet blocks to unregistered
-				subnet.allowUnknown = true
+				subnet.AllowUnknown = true
 			}
 			subnet.network = netBlock
-			netBlock.subnets = append(netBlock.subnets, subnet)
+			netBlock.Subnets = append(netBlock.Subnets, subnet)
 			if shortSyntax {
 				mode = 0
 			}
@@ -215,11 +215,11 @@ mainLoop:
 			return fmt.Errorf("Unexpected token %s on line %d in network", tok.string(), tok.line)
 		}
 	}
-	p.c.networks[name] = netBlock
+	p.c.Networks[name] = netBlock
 	return nil
 }
 
-func (p *parser) parseSubnet() (*subnet, error) {
+func (p *parser) parseSubnet() (*Subnet, error) {
 	ipAddr := p.l.next()
 	if ipAddr.token != IP_ADDRESS {
 		return nil, fmt.Errorf("Expected IP address on line %d", ipAddr.line)
@@ -230,7 +230,7 @@ func (p *parser) parseSubnet() (*subnet, error) {
 		return nil, fmt.Errorf("Expected IP address on line %d", netmask.line)
 	}
 	sub := newSubnet()
-	sub.net = &net.IPNet{
+	sub.Net = &net.IPNet{
 		IP:   ipAddr.value.(net.IP),
 		Mask: net.IPMask(netmask.value.(net.IP)),
 	}
@@ -249,7 +249,7 @@ mainLoop:
 				return nil, err
 			}
 			subPool.subnet = sub
-			sub.pools = append(sub.pools, subPool)
+			sub.Pools = append(sub.Pools, subPool)
 		case RANGE:
 			p.l.unread()
 			subPool, err := p.parsePool() // Start with range statement
@@ -257,7 +257,7 @@ mainLoop:
 				return nil, err
 			}
 			subPool.subnet = sub
-			sub.pools = append(sub.pools, subPool)
+			sub.Pools = append(sub.Pools, subPool)
 			p.l.unread() // Reread END token
 		default:
 			if tok.token.isSetting() {
@@ -271,13 +271,13 @@ mainLoop:
 			return nil, fmt.Errorf("Unexpected token %s on line %d in subnet", tok.string(), tok.line)
 		}
 	}
-	if _, ok := sub.settings.options[dhcp4.OptionSubnetMask]; !ok {
-		sub.settings.options[dhcp4.OptionSubnetMask] = []byte(sub.net.Mask)
+	if _, ok := sub.settings.Options[dhcp4.OptionSubnetMask]; !ok {
+		sub.settings.Options[dhcp4.OptionSubnetMask] = []byte(sub.Net.Mask)
 	}
 	return sub, nil
 }
 
-func (p *parser) parsePool() (*pool, error) {
+func (p *parser) parsePool() (*Pool, error) {
 	nPool := newPool()
 
 mainLoop:
@@ -289,7 +289,7 @@ mainLoop:
 		case EOF, END:
 			break mainLoop
 		case RANGE:
-			if nPool.rangeStart != nil {
+			if nPool.RangeStart != nil {
 				// If we encounter another range statement, assume it's a new Pool block
 				p.l.unread()
 				break mainLoop
@@ -298,13 +298,13 @@ mainLoop:
 			if startIP.token != IP_ADDRESS {
 				return nil, fmt.Errorf("Expected IP address on line %d, got %s", startIP.line, startIP.string())
 			}
-			nPool.rangeStart = startIP.value.(net.IP)
+			nPool.RangeStart = startIP.value.(net.IP)
 
 			endIP := p.l.next()
 			if endIP.token != IP_ADDRESS {
 				return nil, fmt.Errorf("Expected IP address on line %d, got %s", endIP.line, endIP.string())
 			}
-			nPool.rangeEnd = endIP.value.(net.IP)
+			nPool.RangeEnd = endIP.value.(net.IP)
 		default:
 			if tok.token.isSetting() {
 				p.l.unread()
@@ -329,13 +329,13 @@ func (p *parser) parseHost() error {
 	nHost := newHost()
 
 	s, err := p.parseSettingsBlock()
-	nHost.settings = s
-	p.c.hosts[mac.value.(net.HardwareAddr).String()] = nHost
+	nHost.Settings = s
+	p.c.Hosts[mac.value.(net.HardwareAddr).String()] = nHost
 	p.l.next() // Skip END token
 	return err
 }
 
-func (p *parser) parseSettingsBlock() (*settings, error) {
+func (p *parser) parseSettingsBlock() (*Settings, error) {
 	s := newSettingsBlock()
 
 	for {
@@ -355,7 +355,7 @@ func (p *parser) parseSettingsBlock() (*settings, error) {
 	return s, nil
 }
 
-func (p *parser) parseSetting(setBlock *settings) error {
+func (p *parser) parseSetting(setBlock *Settings) error {
 	tok := p.l.next()
 
 	switch tok.token {
@@ -381,9 +381,9 @@ func (p *parser) parseSetting(setBlock *settings) error {
 		}
 
 		if opt.vendor {
-			setBlock.vendorOptions[opt.Code] = opt.Value
+			setBlock.VendorOptions[opt.Code] = opt.Value
 		} else {
-			setBlock.options[opt.Code] = opt.Value
+			setBlock.Options[opt.Code] = opt.Value
 		}
 		return nil
 	case DEFAULT_LEASE_TIME:
@@ -391,21 +391,21 @@ func (p *parser) parseSetting(setBlock *settings) error {
 		if tokn.token != NUMBER {
 			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.defaultLeaseTime = time.Duration(tokn.value.(uint64)) * time.Second
+		setBlock.DefaultLeaseTime = time.Duration(tokn.value.(uint64)) * time.Second
 		return nil
 	case MAX_LEASE_TIME:
 		tokn := p.l.next()
 		if tokn.token != NUMBER {
 			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.maxLeaseTime = time.Duration(tokn.value.(uint64)) * time.Second
+		setBlock.MaxLeaseTime = time.Duration(tokn.value.(uint64)) * time.Second
 		return nil
 	case FREE_LEASE_AFTER:
 		tokn := p.l.next()
 		if tokn.token != NUMBER {
 			return fmt.Errorf("Expected number on line %d", tokn.line)
 		}
-		setBlock.freeLeaseAfter = time.Duration(tokn.value.(uint64)) * time.Second
+		setBlock.FreeLeaseAfter = time.Duration(tokn.value.(uint64)) * time.Second
 		return nil
 	}
 
