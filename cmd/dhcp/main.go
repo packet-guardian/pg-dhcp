@@ -105,7 +105,14 @@ func main() {
 		e.Log.WithField("error", err).Fatal("Error loading DHCP configuration")
 	}
 
-	e.Log.Info("Opening database")
+	dbLog := e.Log.WithField("type", e.Config.Database.Type)
+	if e.Config.Database.Type == "boltdb" {
+		dbLog = dbLog.WithField("path", e.Config.Database.Path)
+	} else {
+		dbLog = dbLog.WithField("address", fmt.Sprintf("%s:%d", e.Config.Database.Address, e.Config.Database.Port))
+	}
+	dbLog.Info("Opening database")
+
 	store, err := openDatabase(e.Config)
 	if err != nil {
 		e.Log.WithField("error", err).Fatal("Error loading lease database")
