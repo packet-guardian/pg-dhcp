@@ -107,7 +107,7 @@ func process(conn net.PacketConn, handler Handler, j *job) {
 
 	// If there's no DHCP relay, use the local server address as if it was the
 	// gateway for processing
-	if j.packet.GIAddr().IsUnspecified() {
+	if j.packet.GIAddr().IsUnspecified() && j.packet.Broadcast() {
 		j.packet.SetGIAddr(j.dst)
 	}
 
