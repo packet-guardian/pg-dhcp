@@ -170,27 +170,33 @@ func isDeviceRegistered(d *models.Device) bool {
 	return d.Registered && !d.Blacklisted
 }
 
-func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
-	start := time.Now()
-
-	gatewayIP := p.GIAddr().String()
-	// Get network object that the relay IP belongs to
+func (h *Handler) getNetworkForGateway(gatewayIP net.IP) *sconfig.Network {
 	h.gatewayMutex.Lock()
-	network, ok := h.gatewayCache[gatewayIP]
+	defer h.gatewayMutex.Unlock()
+
+	network, ok := h.gatewayCache[gatewayIP.String()]
 	if !ok {
 		// That gateway hasn't been seen before, find its network
-		network = c.SearchNetworksFor(p.GIAddr())
+		network = c.SearchNetworksFor(gatewayIP)
 		if network == nil {
-			h.gatewayMutex.Unlock()
-			h.c.Log.WithField("relay_ip", gatewayIP).Notice("Network not found")
 			return nil
 		}
 		// Add to cache for later
-		h.gatewayCache[gatewayIP] = network
+		h.gatewayCache[gatewayIP.String()] = network
+	}
+	return network
+}
+
+func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
+	start := time.Now()
+
+	network := h.getNetworkForGateway(p.GIAddr())
+	if network == nil {
+		h.c.Log.WithField("relay_ip", p.GIAddr().String()).Notice("Network not found")
+		return nil
 	}
 	network.Lock()
 	defer network.Unlock()
-	h.gatewayMutex.Unlock()
 
 	registered := isDeviceRegistered(device) && !network.IgnoreRegistration
 
@@ -238,7 +244,7 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 		"network":    network.Name,
 		"action":     "offer",
 		"took":       time.Since(start).String(),
-		"relay_ip":   gatewayIP,
+		"relay_ip":   p.GIAddr().String(),
 		"xid":        p.XidStr(),
 	}).Info("Offering lease to client")
 
@@ -283,22 +289,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		// Coming directly from the client
 		network = c.SearchNetworksFor(reqIP)
 	} else {
-		// Coming from a relay
-		h.gatewayMutex.Lock()
-		var ok bool
-		network, ok = h.gatewayCache[p.GIAddr().String()]
-		h.gatewayMutex.Unlock()
-		if !ok {
-			h.c.Log.WithFields(verbose.Fields{
-				"ip":       reqIP.String(),
-				"mac":      p.CHAddr().String(),
-				"relay_ip": p.GIAddr().String(),
-				"action":   "nack",
-				"xid":      p.XidStr(),
-			}).Info("Gateway not seen before")
-			// That gateway hasn't been seen before, it needs to go through DISCOVER
-			return dhcp4.ReplyPacket(p, dhcp4.NAK, c.Global.ServerIdentifier, nil, 0, nil)
-		}
+		network = h.getNetworkForGateway(p.GIAddr())
 	}
 
 	registered := isDeviceRegistered(device)
@@ -414,7 +405,7 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 	)
 }
 
-func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
+func (h *Handler) handleRelease(p dhcp4.Packet, _ dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 	reqIP := p.CIAddr()
 	if reqIP == nil || reqIP.Equal(net.IPv4zero) {
@@ -464,7 +455,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 		"action":     "release",
 		"took":       time.Since(start).String(),
 		"xid":        p.XidStr(),
-	}).Info("Releasing lease (DRY RUN)")
+	}).Info("Releasing lease")
 
 	lease.Start = time.Unix(1, 0)
 	lease.End = time.Unix(1, 0)
@@ -477,7 +468,7 @@ func (h *Handler) handleRelease(p dhcp4.Packet, options dhcp4.Options, device *m
 	return nil
 }
 
-func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *models.Device) dhcp4.Packet {
+func (h *Handler) handleDecline(p dhcp4.Packet, _ dhcp4.Options, device *models.Device) dhcp4.Packet {
 	start := time.Now()
 	reqIP := p.CIAddr()
 
@@ -485,25 +476,11 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *m
 	var network *sconfig.Network
 
 	if reqIP == nil || reqIP.Equal(net.IPv4zero) { // Matches RFC
-		var ok bool
-		gatewayIP := p.GIAddr().String()
-		h.gatewayMutex.Lock()
-
-		network, ok = h.gatewayCache[gatewayIP]
-		if !ok {
-			// That gateway hasn't been seen before, find its network
-			network = c.SearchNetworksFor(p.GIAddr())
-			if network == nil {
-				h.gatewayMutex.Unlock()
-				h.c.Log.WithField("relay_ip", gatewayIP).Notice("Network not found")
-				return nil
-			}
-			// Add to cache for later
-			h.gatewayCache[gatewayIP] = network
+		network = h.getNetworkForGateway(p.GIAddr())
+		if network == nil {
+			h.c.Log.WithField("relay_ip", p.GIAddr().String()).Notice("Network not found")
+			return nil
 		}
-		network.Lock()
-		defer network.Unlock()
-		h.gatewayMutex.Unlock()
 	} else {
 		network = c.SearchNetworksFor(reqIP)
 		if network == nil {
@@ -514,9 +491,10 @@ func (h *Handler) handleDecline(p dhcp4.Packet, options dhcp4.Options, device *m
 			}).Notice("Got a DECLINE for IP not in a scope")
 			return nil
 		}
-		network.Lock()
-		defer network.Unlock()
 	}
+
+	network.Lock()
+	defer network.Unlock()
 
 	registered = registered && !network.IgnoreRegistration
 
