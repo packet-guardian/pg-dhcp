@@ -34,7 +34,7 @@ build:
 		-e "BUILDER=$(BUILDER)" \
 		-e "VERSION=$(VERSION)" \
 		-e "BUILDTIME=$(BUILDTIME)" \
-		docker.io/golang:1.23-bullseye \
+		docker.io/golang:1.24.2-bullseye \
 		make docker-safe-dir build-cmd
 
 build-tools:
@@ -46,7 +46,7 @@ build-tools:
 		-e "BUILDER=$(BUILDER)" \
 		-e "VERSION=$(VERSION)" \
 		-e "BUILDTIME=$(BUILDTIME)" \
-		docker.io/golang:1.23-bullseye \
+		docker.io/golang:1.24.2-bullseye \
 		make docker-safe-dir build-cli build-db-edit build-db-migrate
 
 build-cmd:
