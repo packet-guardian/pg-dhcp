@@ -296,10 +296,6 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		network = h.getNetworkForGateway(p.GIAddr())
 	}
 
-	if network.EnforceBlocklist && device.Blacklisted {
-		return nil
-	}
-
 	registered := isDeviceRegistered(device)
 
 	if network == nil {
@@ -313,6 +309,10 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 	}
 	network.Lock()
 	defer network.Unlock()
+
+	if network.EnforceBlocklist && device.Blacklisted {
+		return nil
+	}
 
 	registered = registered && !network.IgnoreRegistration
 
