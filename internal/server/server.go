@@ -198,6 +198,10 @@ func (h *Handler) handleDiscover(p dhcp4.Packet, options dhcp4.Options, device *
 	network.Lock()
 	defer network.Unlock()
 
+	if network.EnforceBlocklist && device.Blacklisted {
+		return nil
+	}
+
 	registered := isDeviceRegistered(device) && !network.IgnoreRegistration
 
 	// Find an appropiate lease
@@ -290,6 +294,10 @@ func (h *Handler) handleRequest(p dhcp4.Packet, options dhcp4.Options, device *m
 		network = c.SearchNetworksFor(reqIP)
 	} else {
 		network = h.getNetworkForGateway(p.GIAddr())
+	}
+
+	if network.EnforceBlocklist && device.Blacklisted {
+		return nil
 	}
 
 	registered := isDeviceRegistered(device)
@@ -545,6 +553,10 @@ func (h *Handler) handleInform(p dhcp4.Packet, options dhcp4.Options, device *mo
 	}
 	network.Lock()
 	defer network.Unlock()
+
+	if network.EnforceBlocklist && device.Blacklisted {
+		return nil
+	}
 
 	pool := network.GetPoolOfIP(ip)
 	if pool == nil {

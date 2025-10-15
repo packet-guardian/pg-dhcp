@@ -160,6 +160,8 @@ mainLoop:
 			continue
 		case IGNORE_REGISTRATION:
 			netBlock.IgnoreRegistration = true
+		case ENFORCE_BLOCKLIST:
+			netBlock.EnforceBlocklist = true
 		case SUBNET:
 			shortSyntax := false
 			if mode == 0 {
