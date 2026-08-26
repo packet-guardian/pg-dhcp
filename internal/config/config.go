@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"slices"
 	"time"
 
 	"github.com/naoina/toml"
@@ -162,7 +163,7 @@ func setSensibleDefaults(c *Config) (*Config, error) {
 	c.Management.Address = setStringOrDefault(c.Management.Address, "0.0.0.0")
 	c.Management.Port = setIntOrDefault(c.Management.Port, 8677)
 	if c.Management.AllowedIPs != nil {
-		if utils.StringSliceContains(c.Management.AllowedIPs, "0.0.0.0") {
+		if slices.Contains(c.Management.AllowedIPs, "0.0.0.0") {
 			// 0.0.0.0 matches every address, setting this to nil is as if it was never set.
 			c.Management.AllowedIPs = nil
 		}
