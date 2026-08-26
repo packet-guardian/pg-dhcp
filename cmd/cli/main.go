@@ -1,30 +1,48 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/packet-guardian/pg-dhcp/rpcclient"
+	"github.com/packet-guardian/pg-dhcp/stats"
 )
 
 var (
 	serverAddress string
+	jsonOut       bool
+	verFlag       bool
+
+	version   = ""
+	buildTime = ""
+	builder   = ""
+	goversion = ""
 )
 
 func init() {
 	flag.StringVar(&serverAddress, "h", "localhost:8677", "DHCP managment host address")
+	flag.BoolVar(&jsonOut, "json", false, "Output JSON")
+	flag.BoolVar(&verFlag, "v", verFlag, "Display version information")
 }
 
 func main() {
 	flag.Parse()
 
+	if verFlag {
+		displayVersionInfo()
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Connecting to %s\n", serverAddress)
 	client, err := rpcclient.Connect("tcp", serverAddress)
 	if err != nil {
 		log.Fatal(err)
@@ -44,12 +62,56 @@ func main() {
 		getNetworkNames(client)
 	case "pools":
 		getPoolStats(client)
+	case "memory":
+		getMemStatus(client)
 	case "devices":
 		devicesCmd(client, args)
+	case "help":
+		helpCmd()
 	default:
 		fmt.Printf("\"%s\" is not a command\n", command)
 		os.Exit(1)
 	}
+}
+
+func displayVersionInfo() {
+	fmt.Printf(`PG Dhcp - (C) 2016 The Packet Guardian Authors
+
+Version:     %s
+Built:       %s
+Compiled by: %s
+Go version:  %s
+`, version, buildTime, builder, goversion)
+}
+
+func helpCmd() {
+	fmt.Println(`PG DHCP Management Client
+Usage: pg-dhcp [options] command [args]
+Options:
+  -h, --host <host:port>   DHCP management host address (default: localhost:8677)
+  -j, --json               Output JSON
+  -v, --version            Display version information
+
+Commands:
+  leases <options>       Show leases
+  networks               Show network names
+  pools                  Show pool statistics
+  memory                 Show memory statistics
+  devices <options>      Show device information
+  help                   Show this help message
+
+Examples:
+  pg-dhcp leases -n <network>       Show all leases in a network
+  pg-dhcp leases -ip <ip>           Show lease information for a specific IP
+  pg-dhcp networks                  Show all network names
+  pg-dhcp pools                     Show pool statistics
+  pg-dhcp memory                    Show memory statistics
+  pg-dhcp devices show <mac>        Show device information for a specific MAC address
+  pg-dhcp devices register <mac>    Register a device
+  pg-dhcp devices unregister <mac>  Unregister a device
+  pg-dhcp devices block <mac>       Block a device
+  pg-dhcp devices unblock <mac>     Unblock a device
+  pg-dhcp devices delete <mac>      Delete a device`)
 }
 
 var multLleaseTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 -07:00"}}
@@ -143,21 +205,63 @@ Pool Statistics:
 {{end}}
 `))
 
+var memStatsTemplate = template.Must(template.New("").Parse(`Server Time: {{.Now.Format "2006-01-02 15:04:05 -07:00"}}
+{{with .S.GoRoutines}}
+Goroutine Count: {{.RoutineNum}}
+{{end}}{{with .S.Memory}}
+Alloc:        {{.Alloc}}
+TotalAlloc:   {{.TotalAlloc}}
+Sys:          {{.Sys}}
+Mallocs:      {{.Mallocs}}
+Frees:        {{.Frees}}
+PauseTotalNs: {{.PauseTotalNs}}
+NumGC:        {{.NumGC}}
+HeapObjects:  {{.HeapObjects}}
+LastGC:       {{.LastGC}}
+{{end}}
+`))
+
 func getPoolStats(client rpcclient.Client) {
-	stats, err := client.Server().GetPoolStats()
+	poolStats, err := client.Server().GetPoolStats()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	poolStatsTemplate.Execute(os.Stdout, map[string]interface{}{
-		"Now":   time.Now(),
-		"Pools": stats,
+	slices.SortFunc(poolStats, func(a, b *stats.PoolStat) int {
+		return strings.Compare(strings.ToLower(a.NetworkName), strings.ToLower(b.NetworkName))
 	})
+
+	if jsonOut {
+		b, _ := json.Marshal(poolStats)
+		fmt.Println(string(b))
+	} else {
+		poolStatsTemplate.Execute(os.Stdout, map[string]interface{}{
+			"Now":   time.Now(),
+			"Pools": poolStats,
+		})
+	}
+}
+
+func getMemStatus(client rpcclient.Client) {
+	stats, err := client.Server().MemStatus()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if jsonOut {
+		b, _ := json.Marshal(stats)
+		fmt.Println(string(b))
+	} else {
+		memStatsTemplate.Execute(os.Stdout, map[string]interface{}{
+			"Now": time.Now(),
+			"S":   stats,
+		})
+	}
 }
 
 func devicesCmd(client rpcclient.Client, args []string) {
 	if len(args) != 2 {
-		fmt.Println("Usage: devices [show|register|unregister|blacklist|unblacklist|delete] MAC")
+		fmt.Println("Usage: devices [show|register|unregister|block|unblock|delete] MAC")
 		os.Exit(1)
 	}
 
@@ -175,14 +279,14 @@ func devicesCmd(client rpcclient.Client, args []string) {
 		devicesCmdRegister(client, mac)
 	case "unregister":
 		devicesCmdUnregister(client, mac)
-	case "blacklist":
+	case "block":
 		devicesCmdBlacklist(client, mac)
-	case "unblacklist":
+	case "unblock":
 		devicesCmdUnblacklist(client, mac)
 	case "delete":
 		devicesCmdDelete(client, mac)
 	default:
-		fmt.Println("Usage: devices [show|register|unregister|blacklist|unblacklist|delete] MAC")
+		fmt.Println("Usage: devices [show|register|unregister|block|unblock|delete] MAC")
 		os.Exit(1)
 	}
 }
@@ -190,7 +294,7 @@ func devicesCmd(client rpcclient.Client, args []string) {
 var singleDeviceTemplate = template.Must(template.New("").Parse(`{{with .Device}}
 	MAC:         {{.MAC.String}}
 	Registered:  {{.Registered}}
-	Blacklisted: {{.Blacklisted}}
+	Blocked:     {{.Blacklisted}}
 {{end}}
 `))
 

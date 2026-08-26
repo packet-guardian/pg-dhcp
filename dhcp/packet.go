@@ -12,6 +12,8 @@
 package dhcp4
 
 import (
+	"encoding/json"
+	"fmt"
 	"net"
 	"time"
 )
@@ -32,6 +34,7 @@ func (p Packet) HType() byte    { return p[1] }
 func (p Packet) HLen() byte     { return p[2] }
 func (p Packet) Hops() byte     { return p[3] }
 func (p Packet) XId() []byte    { return p[4:8] }
+func (p Packet) XidStr() string { return fmt.Sprintf("%x", p.XId()) }
 func (p Packet) Secs() []byte   { return p[8:10] } // Never Used?
 func (p Packet) Flags() []byte  { return p[10:12] }
 func (p Packet) CIAddr() net.IP { return net.IP(p[12:16]) }
@@ -72,6 +75,66 @@ func (p Packet) Options() []byte {
 }
 
 func (p Packet) Broadcast() bool { return p.Flags()[0] > 127 }
+
+func (p Packet) String() string {
+	j, _ := p.MarshalJSON()
+	return string(j)
+}
+
+func (p Packet) MarshalJSON() ([]byte, error) {
+	type option struct {
+		Bytes string
+		Str   string
+	}
+	type packet struct {
+		OpCode    OpCode             `json:"OpCode"`
+		HType     byte               `json:"HType"`
+		HLen      byte               `json:"HLen"`
+		Hops      byte               `json:"Hops"`
+		XId       string             `json:"XId"`
+		Secs      string             `json:"Secs"`
+		Flags     string             `json:"Flags"`
+		CIAddr    string             `json:"CIAddr"`
+		YIAddr    string             `json:"YIAddr"`
+		SIAddr    string             `json:"SIAddr"`
+		GIAddr    string             `json:"GIAddr"`
+		CHAddr    string             `json:"CHAddr"`
+		SName     string             `json:"SName"`
+		File      string             `json:"File"`
+		Cookie    string             `json:"Cookie"`
+		Options   map[string]*option `json:"Options"`
+		Broadcast bool               `json:"Broadcast"`
+	}
+	jsonp := packet{}
+
+	jsonp.OpCode = p.OpCode()
+	jsonp.HType = p.HType()
+	jsonp.HLen = p.HLen()
+	jsonp.Hops = p.Hops()
+	jsonp.XId = fmt.Sprintf("%x", p.XId())
+	jsonp.Secs = fmt.Sprintf("%x", p.Secs())
+	jsonp.Flags = fmt.Sprintf("%x", p.Flags())
+	jsonp.CIAddr = p.CIAddr().String()
+	jsonp.YIAddr = p.YIAddr().String()
+	jsonp.SIAddr = p.SIAddr().String()
+	jsonp.GIAddr = p.GIAddr().String()
+	jsonp.CHAddr = p.CHAddr().String()
+	jsonp.SName = fmt.Sprintf("%x", p.SName())
+	jsonp.File = fmt.Sprintf("%x", p.File())
+	jsonp.Cookie = fmt.Sprintf("%x", p.Cookie())
+	jsonp.Broadcast = p.Broadcast()
+
+	jsonp.Options = make(map[string]*option)
+
+	for code, b := range p.ParseOptions() {
+		jsonp.Options[code.String()] = &option{
+			Bytes: fmt.Sprintf("%x", b),
+			Str:   string(b),
+		}
+	}
+
+	return json.Marshal(&jsonp)
+}
 
 func (p Packet) SetBroadcast(broadcast bool) {
 	if p.Broadcast() != broadcast {

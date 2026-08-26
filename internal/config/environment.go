@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/lfkeitel/verbose"
+	"github.com/lfkeitel/verbose/v5"
 )
 
 type EnvironmentEnv string
@@ -43,9 +43,9 @@ func NewTestEnvironment() *Environment {
 
 	// Disable automatic logging, manually configure if needed
 	if os.Getenv("PG_TEST_LOG") != "" {
-		stdout := verbose.NewStdoutHandler(true)
+		stdout := verbose.NewTextTransport()
 		stdout.SetMinLevel(verbose.LogLevelDebug)
-		e.Log.AddHandler("stdout", stdout)
+		e.Log.AddTransport(stdout)
 	}
 	return e
 }

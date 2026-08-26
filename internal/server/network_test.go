@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lfkeitel/verbose"
-	"github.com/packet-guardian/pg-dhcp/dhcp"
+	"github.com/lfkeitel/verbose/v5"
+	dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 )
 
 // TestGiveLeaseFromMultiplePools is targeted at the Network.getFreeLease()
@@ -28,7 +28,7 @@ func TestGiveLeaseFromMultiplePools(t *testing.T) {
 
 	sc := &ServerConfig{
 		Env:   EnvTesting,
-		Log:   verbose.New(""),
+		Log:   verbose.New(),
 		Store: db,
 	}
 

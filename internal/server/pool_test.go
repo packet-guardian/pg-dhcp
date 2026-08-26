@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lfkeitel/verbose"
+	"github.com/lfkeitel/verbose/v5"
 )
 
 func TestIPGiveOut(t *testing.T) {
@@ -21,7 +21,7 @@ func TestIPGiveOut(t *testing.T) {
 
 	sc := &ServerConfig{
 		Env:   EnvTesting,
-		Log:   verbose.New(""),
+		Log:   verbose.New(),
 		Store: db,
 	}
 
@@ -62,7 +62,7 @@ func benchmarkPool(name string, b *testing.B) {
 
 	sc := &ServerConfig{
 		Env:   EnvTesting,
-		Log:   verbose.New(""),
+		Log:   verbose.New(),
 		Store: db,
 	}
 

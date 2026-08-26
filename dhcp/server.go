@@ -7,15 +7,8 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"sync"
-)
 
-var (
-	bufferPool = sync.Pool{
-		New: func() interface{} {
-			return make([]byte, 1500)
-		},
-	}
+	"golang.org/x/net/ipv4"
 )
 
 // A Handler takes a DHCP request packet and generates a response to the client
@@ -26,10 +19,10 @@ type Handler interface {
 // ServeConn is the bare minimum connection functions required by Serve()
 // It allows you to create custom connections for greater control,
 // such as ServeIfConn (see serverif.go), which locks to a given interface.
-type ServeConn interface {
-	ReadFrom(b []byte) (n int, addr net.Addr, err error)
-	WriteTo(b []byte, addr net.Addr) (n int, err error)
-}
+// type ServeConn interface {
+// 	ReadFrom(b []byte) (n int, addr net.Addr, err error)
+// 	WriteTo(b []byte, addr net.Addr) (n int, err error)
+// }
 
 // Serve takes a ServeConn (such as a net.PacketConn) that it uses for both
 // reading and writing DHCP packets. Every packet is passed to the handler,
@@ -44,7 +37,7 @@ type ServeConn interface {
 // Additionally, response packets may not return to the same
 // interface that the request was received from.  Writing a custom ServeConn,
 // can provide a workaround to this problem.
-func Serve(conn ServeConn, handler Handler, workers int) (err error) {
+func Serve(conn net.PacketConn, handler Handler, workers int) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = r.(error)
@@ -54,9 +47,31 @@ func Serve(conn ServeConn, handler Handler, workers int) (err error) {
 
 	taskQueue := startWorkers(workers, conn, handler)
 
+	cmconn := ipv4.NewPacketConn(conn)
+	if err := cmconn.SetControlMessage(ipv4.FlagInterface, true); err != nil {
+		return err
+	}
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+
+	ifaceAddrs := make(map[int]net.IP, len(ifaces))
+	for _, iface := range ifaces {
+		addrs, _ := iface.Addrs()
+		for _, addr := range addrs {
+			host, _, _ := net.ParseCIDR(addr.String())
+			if host.To4() != nil {
+				ifaceAddrs[iface.Index] = host
+				break
+			}
+		}
+	}
+
 	for {
-		buffer := bufferPool.Get().([]byte)
-		n, addr, err := conn.ReadFrom(buffer)
+		buffer := make([]byte, 1500)
+		n, cm, addr, err := cmconn.ReadFrom(buffer)
 		if err != nil {
 			close(taskQueue)
 			return err
@@ -70,16 +85,15 @@ func Serve(conn ServeConn, handler Handler, workers int) (err error) {
 		}
 
 		select {
-		case taskQueue <- job{p: req, from: addr}:
+		case taskQueue <- job{packet: req, dst: ifaceAddrs[cm.IfIndex], from: addr}:
 		default:
 			fmt.Println("Task queue full")
-			bufferPool.Put(buffer)
 		}
 	}
 }
 
-func process(conn ServeConn, p Packet, handler Handler, from net.Addr) {
-	options := p.ParseOptions()
+func process(conn net.PacketConn, handler Handler, j *job) {
+	options := j.packet.ParseOptions()
 
 	t := options[OptionDHCPMessageType]
 	if len(t) != 1 {
@@ -91,37 +105,45 @@ func process(conn ServeConn, p Packet, handler Handler, from net.Addr) {
 		return
 	}
 
-	if res := handler.ServeDHCP(p, reqType, options); res != nil {
-		// If coming from a relay, unicast back
-		if !p.GIAddr().Equal(net.IPv4zero) {
-			if _, e := conn.WriteTo(res, from); e != nil {
+	// If there's no DHCP relay, use the local server address as if it was the
+	// gateway for processing
+	if j.packet.GIAddr().IsUnspecified() {
+		j.packet.SetGIAddr(j.dst)
+	}
+
+	if res := handler.ServeDHCP(j.packet, reqType, options); res != nil {
+		// If coming from a relay and the relay address is not
+		// a local server address, unicast back
+		if !j.packet.GIAddr().Equal(j.dst) && !j.packet.GIAddr().IsUnspecified() {
+			if _, e := conn.WriteTo(res, j.from); e != nil {
 				panic(e)
 			}
 			return
 		}
 
-		ipStr, portStr, err := net.SplitHostPort(from.String())
+		ipStr, portStr, err := net.SplitHostPort(j.from.String())
 		if err != nil {
 			return
 		}
 
 		// If IP not available or broadcast bit is set, broadcast
-		if net.ParseIP(ipStr).Equal(net.IPv4zero) || p.Broadcast() {
+		if net.ParseIP(ipStr).IsUnspecified() || j.packet.Broadcast() {
 			port, _ := strconv.Atoi(portStr)
-			from = &net.UDPAddr{IP: net.IPv4bcast, Port: port}
+			j.from = &net.UDPAddr{IP: net.IPv4bcast, Port: port}
 		}
-		if _, e := conn.WriteTo(res, from); e != nil {
+		if _, e := conn.WriteTo(res, j.from); e != nil {
 			panic(e)
 		}
 	}
 }
 
 type job struct {
-	p    Packet
-	from net.Addr
+	packet Packet
+	dst    net.IP
+	from   net.Addr
 }
 
-func startWorkers(num int, conn ServeConn, handler Handler) chan job {
+func startWorkers(num int, conn net.PacketConn, handler Handler) chan job {
 	tasks := make(chan job, num*2)
 
 	for i := 1; i <= num; i++ {
@@ -132,10 +154,9 @@ func startWorkers(num int, conn ServeConn, handler Handler) chan job {
 	return tasks
 }
 
-func worker(conn ServeConn, handler Handler, tasks <-chan job) {
+func worker(conn net.PacketConn, handler Handler, tasks <-chan job) {
 	for j := range tasks {
-		process(conn, j.p, handler, j.from)
-		bufferPool.Put([]byte(j.p))
+		process(conn, handler, &j)
 	}
-	fmt.Println("Working stopping")
+	fmt.Println("Worker stopping")
 }

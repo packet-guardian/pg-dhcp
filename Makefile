@@ -1,17 +1,17 @@
 NAME := pg-dhcp
 DESC := DHCP server
-VERSION := $(shell git describe --tags --always --dirty)
+VERSION ?= $(shell git describe --tags --always --dirty)
 GOVERSION := $(shell go version)
-BUILDTIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-BUILDER := $(shell echo "`git config user.name` <`git config user.email`>")
-CGO_ENABLED ?= 0
+BUILDTIME ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+BUILDER ?= $(shell echo "`git config user.name` <`git config user.email`>")
+CGO_ENABLED := 0
 
 PWD := $(shell pwd)
 GOBIN := $(PWD)/bin
-CODECLIMATE_CODE := $(PWD)
+UID := $(shell id -u)
+GID := $(shell id -g)
 
 ifeq ($(shell uname -o), Cygwin)
-CODECLIMATE_CODE := //c/cygwin64$(PWD)
 PWD := $(shell cygpath -w -a `pwd`)
 GOBIN := $(PWD)\bin
 endif
@@ -21,17 +21,50 @@ LDFLAGS := -X 'main.version=$(VERSION)' \
 			-X 'main.builder=$(BUILDER)' \
 			-X 'main.goversion=$(GOVERSION)'
 
-.PHONY: all doc fmt alltests test coverage benchmark lint vet dhcp management dist clean docker build
+.PHONY: all docker-safe-dir doc fmt alltests test coverage benchmark lint vet dhcp management dist clean docker build build-cmd build-tools build-cli build-db-edit build-db-migrate
 
-all: test build
+all: test build build-tools
 
 build:
+	docker run \
+		--rm \
+		-v "$(PWD)":/usr/src/myapp \
+		-w /usr/src/myapp \
+		-e XDG_CACHE_HOME=/tmp/.cache \
+		-e "BUILDER=$(BUILDER)" \
+		-e "VERSION=$(VERSION)" \
+		-e "BUILDTIME=$(BUILDTIME)" \
+		docker.io/golang:1.23-bullseye \
+		make docker-safe-dir build-cmd
+
+build-tools:
+	docker run \
+		--rm \
+		-v "$(PWD)":/usr/src/myapp \
+		-w /usr/src/myapp \
+		-e XDG_CACHE_HOME=/tmp/.cache \
+		-e "BUILDER=$(BUILDER)" \
+		-e "VERSION=$(VERSION)" \
+		-e "BUILDTIME=$(BUILDTIME)" \
+		docker.io/golang:1.23-bullseye \
+		make docker-safe-dir build-cli build-db-edit build-db-migrate
+
+build-cmd:
 	go build -o bin/dhcp -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/dhcp/...
 
 build-cli:
 	go build -o bin/dhcp-cli -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/cli/...
 
+build-db-edit:
+	go build -o bin/dhcp-edit -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/db-edit/...
+
+build-db-migrate:
+	go build -o bin/dhcp-migrate -v -ldflags "$(LDFLAGS)" -tags '$(BUILDTAGS)' ./cmd/db-migrate/...
+
 # development tasks
+docker-safe-dir:
+	git config --global --add safe.directory /usr/src/myapp
+
 doc:
 	@godoc -http=:6060 -index
 

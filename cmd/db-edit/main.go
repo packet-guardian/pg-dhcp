@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	bolt "github.com/coreos/bbolt"
 	"github.com/packet-guardian/pg-dhcp/models"
+	bolt "go.etcd.io/bbolt"
 )
 
 var (

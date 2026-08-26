@@ -4,7 +4,7 @@
 
 package server
 
-import "github.com/packet-guardian/pg-dhcp/dhcp"
+import dhcp4 "github.com/packet-guardian/pg-dhcp/dhcp"
 
 type multiple int // How many of a token type are allowed
 type length int   // The number of bytes an option can be in length
@@ -15,23 +15,30 @@ const (
 	unlimited length = 0 // The option may be as long as needed (within spec)
 )
 
+type optionSchema struct {
+	token      token
+	multi      multiple // How many of the token are allowed
+	multipleOf int
+	maxlen     length // Maximum number of bytes the option can be
+}
+
 var (
 	// The following are all the schemas used in the options defined below
 	booleanSchema  = &optionSchema{token: BOOLEAN, multi: 1, maxlen: 1, multipleOf: 1}
 	singleIPSchema = &optionSchema{token: IP_ADDRESS, multi: 1, maxlen: 4, multipleOf: 4}
 	multiIPSchema  = &optionSchema{token: IP_ADDRESS, multi: oneOrMore, maxlen: unlimited, multipleOf: 4}
 	stringSchema   = &optionSchema{token: STRING, multi: 1, maxlen: unlimited, multipleOf: 1}
-	int8Schema     = &optionSchema{token: NUMBER, multi: 1, maxlen: 1, multipleOf: 1}
-	int16Schema    = &optionSchema{token: NUMBER, multi: 1, maxlen: 2, multipleOf: 2}
-	int32Schema    = &optionSchema{token: NUMBER, multi: 1, maxlen: 4, multipleOf: 4}
-	anySchema      = &optionSchema{token: ANY, multi: oneOrMore, maxlen: unlimited, multipleOf: 1}
+
+	int8Schema  = &optionSchema{token: NUMBER, multi: 1, maxlen: 1, multipleOf: 1}
+	int16Schema = &optionSchema{token: NUMBER, multi: 1, maxlen: 2, multipleOf: 2}
+	int32Schema = &optionSchema{token: NUMBER, multi: 1, maxlen: 4, multipleOf: 4}
+
+	anySchema = &optionSchema{token: ANY, multi: oneOrMore, maxlen: unlimited, multipleOf: 1}
 )
 
-type optionSchema struct {
-	token      token
-	multi      multiple // How many of the token are allowed
-	multipleOf int
-	maxlen     length // Maximum number of bytes the option can be
+type option struct {
+	dhcp4.Option
+	vendor bool
 }
 
 type dhcpOptionBlock struct {
@@ -219,10 +226,10 @@ var options = map[string]*dhcpOptionBlock{
 		code:   dhcp4.OptionNetworkTimeProtocolServers,
 		schema: multiIPSchema,
 	},
-	// "vendor-specific-information": &dhcpOptionBlock{
-	// 	code:   dhcp4.OptionVendorSpecificInformation,
-	// 	schema: stringSchema,
-	// },
+	"vendor-options": &dhcpOptionBlock{
+		code:   dhcp4.OptionVendorSpecificInformation,
+		schema: booleanSchema, // Enabled in config, generated for client
+	},
 	"netbios-over-tcpip-name-server": &dhcpOptionBlock{
 		code:   dhcp4.OptionNetBIOSOverTCPIPNameServer,
 		schema: multiIPSchema,

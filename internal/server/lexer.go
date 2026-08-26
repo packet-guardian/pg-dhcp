@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"net"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
@@ -175,6 +176,7 @@ func (l *lexer) consumeNumeric() []*lexToken {
 	dotCount := 0
 	hasSlash := false
 	negative := false
+	hasColon := false
 
 	for {
 		b, err := l.r.ReadByte()
@@ -194,6 +196,10 @@ func (l *lexer) consumeNumeric() []*lexToken {
 			continue
 		} else if b == '-' {
 			negative = true
+			continue
+		} else if b == ':' || isLetter(b) {
+			hasColon = true
+			buf.WriteByte(b)
 			continue
 		}
 		l.r.UnreadByte()
@@ -222,6 +228,14 @@ func (l *lexer) consumeNumeric() []*lexToken {
 		} else {
 			toks[0].token = IP_ADDRESS
 			toks[0].value = ip
+		}
+	} else if hasColon { // MAC Address
+		mac, err := net.ParseMAC(buf.String())
+		if err != nil {
+			toks[0].token = ILLEGAL
+		} else {
+			toks[0].token = MAC_ADDRESS
+			toks[0].value = mac
 		}
 	} else if dotCount == 0 { // Number
 		if negative {
@@ -264,6 +278,13 @@ func (l *lexer) consumeIdent() []*lexToken {
 		tok = &lexToken{token: BOOLEAN, value: true}
 	} else if s == "false" {
 		tok = &lexToken{token: BOOLEAN, value: false}
+	} else if strings.Contains(s, ":") {
+		mac, err := net.ParseMAC(buf.String())
+		if err != nil {
+			tok = &lexToken{token: ILLEGAL, value: nil}
+		} else {
+			tok = &lexToken{token: MAC_ADDRESS, value: mac}
+		}
 	} else {
 		tok = &lexToken{token: lookup(buf.String()), value: buf.String()}
 	}

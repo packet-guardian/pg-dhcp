@@ -54,7 +54,8 @@ func setUpMySQLStore(t *testing.T) (*MySQLStore, error) {
 	_, err = s.db.Exec(`CREATE TABLE "device" (
 		"mac" VARCHAR(17) NOT NULL UNIQUE KEY,
 		"registered" TINYINT DEFAULT 0,
-		"blacklisted" TINYINT DEFAULT 0
+		"blacklisted" TINYINT DEFAULT 0,
+		"last_seen" INTEGER NOT NULL
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8`)
 	if err != nil {
 		t.Fatal(err)

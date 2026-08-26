@@ -18,6 +18,10 @@ func Connect(network, address string) (Client, error) {
 	return &RPCClient{c: c}, nil
 }
 
+func (c *RPCClient) call(serviceMethod string, args interface{}, reply interface{}) error {
+	return c.c.Call(serviceMethod, args, reply)
+}
+
 // Close the RPC connection
 func (c *RPCClient) Close() error {
 	return c.c.Close()

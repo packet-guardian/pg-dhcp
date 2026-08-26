@@ -3,7 +3,7 @@ package management
 import (
 	"sort"
 
-	"github.com/lfkeitel/verbose"
+	"github.com/lfkeitel/verbose/v5"
 	"github.com/packet-guardian/pg-dhcp/internal/server"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
@@ -27,7 +27,7 @@ func setUpTest(t fatalLogger) (*server.Handler, store.Store) {
 
 	sc := &server.ServerConfig{
 		Env:   server.EnvTesting,
-		Log:   verbose.New(""),
+		Log:   verbose.New(),
 		Store: db,
 	}
 

@@ -5,7 +5,7 @@
 package server
 
 import (
-	"github.com/lfkeitel/verbose"
+	"github.com/lfkeitel/verbose/v5"
 	"github.com/packet-guardian/pg-dhcp/store"
 )
 

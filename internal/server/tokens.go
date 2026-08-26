@@ -30,6 +30,7 @@ const (
 	STRING
 	IP_ADDRESS
 	BOOLEAN
+	MAC_ADDRESS
 	literal_end
 
 	keyword_beg
@@ -38,12 +39,17 @@ const (
 	NETWORK
 	SUBNET
 	POOL
+	HOST
 	REGISTERED
 	UNREGISTERED
 	SERVER_IDENTIFIER
 	RANGE
 	INCLUDE
 	LOCAL
+	IGNORE_REGISTRATION
+	DECL_OPTION
+	CODE
+	OPTION_TYPE
 
 	setting_beg
 	OPTION
@@ -59,22 +65,28 @@ var tokens = [...]string{
 	EOF:     "EOF",
 	COMMENT: "COMMENT",
 
-	NUMBER:     "NUMBER",
-	STRING:     "STRING",
-	IP_ADDRESS: "IP_ADDRESS",
-	BOOLEAN:    "BOOLEAN",
+	NUMBER:      "NUMBER",
+	STRING:      "STRING",
+	IP_ADDRESS:  "IP_ADDRESS",
+	BOOLEAN:     "BOOLEAN",
+	MAC_ADDRESS: "MAC_ADDRESS",
 
-	END:               "end",
-	GLOBAL:            "global",
-	NETWORK:           "network",
-	SUBNET:            "subnet",
-	POOL:              "pool",
-	REGISTERED:        "registered",
-	UNREGISTERED:      "unregistered",
-	SERVER_IDENTIFIER: "server-identifier",
-	RANGE:             "range",
-	INCLUDE:           "include",
-	LOCAL:             "local",
+	END:                 "end",
+	GLOBAL:              "global",
+	NETWORK:             "network",
+	SUBNET:              "subnet",
+	POOL:                "pool",
+	HOST:                "host",
+	REGISTERED:          "registered",
+	UNREGISTERED:        "unregistered",
+	SERVER_IDENTIFIER:   "server-identifier",
+	RANGE:               "range",
+	INCLUDE:             "include",
+	LOCAL:               "local",
+	IGNORE_REGISTRATION: "ignore-registration",
+	DECL_OPTION:         "decloption",
+	CODE:                "code",
+	OPTION_TYPE:         "type",
 
 	OPTION:             "option",
 	FREE_LEASE_AFTER:   "free-lease-after",
